@@ -1,0 +1,609 @@
+/* DM Sans står in för Lifesums TT Norms Pro: samma geometriska grotesk med
+   dubbelvånings-a och öppna former, men fritt licensierad. */
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/*
+  Färgerna är hämtade ur lifesum.com: den varma off-whiten (#FAF5F0 / #F5EBE1),
+  den nästan svarta texten (#0E0E0E) och exakt en grön (#21BA3A).
+
+  Grönt som fyllning tål vit text, men som *text* på ljus botten ligger #21BA3A
+  på ca 2,3:1 mot vitt — långt under läsbart. Därför två variabler: --accent
+  fyller ytor, --accent-ink skriver text. Blanda inte ihop dem.
+*/
+:root {
+  --bg-base: #FAF5F0;
+  --bg-alt: #F5EBE1;
+  --bg-surface: #FFFFFF;
+  --bg-surface-hover: #F7F2EC;
+  --bg-elevated: #FFFFFF;
+  --bg-sunken: #F1E9E1;
+
+  --border-color: rgba(14, 14, 14, 0.08);
+  --border-hover: rgba(14, 14, 14, 0.16);
+
+  --text-primary: #0E0E0E;
+  --text-secondary: #5C5C5C;
+  --text-muted: #8A8A8A;
+
+  --accent: #21BA3A;
+  --accent-ink: #15862A;
+  --accent-soft: rgba(33, 186, 58, 0.10);
+  --accent-glow: rgba(33, 186, 58, 0.18);
+
+  --danger: #D64545;
+  --danger-ink: #B22F2F;
+  --danger-soft: rgba(214, 69, 69, 0.10);
+  --warn: #E08A1E;
+  --warn-ink: #9A5B00;
+  --warn-soft: rgba(224, 138, 30, 0.14);
+
+  --shadow-card: 0 1px 2px rgba(14, 14, 14, 0.04), 0 6px 16px rgba(14, 14, 14, 0.05);
+  --shadow-lift: 0 8px 28px rgba(14, 14, 14, 0.12);
+
+  --nav-bg: rgba(255, 255, 255, 0.94);
+  --nav-height: 62px;
+  /* Home-indikatorns svepyta är ~13pt, inte Apples fulla 34pt inset — vi kapar
+     16 och landar på 18pt, vilket håller etiketterna klart ovanför ytan.
+     Två deklarationer med flit: klarar en motor inte env() inuti max() blir den
+     andra ogiltig och den första står kvar. */
+  --nav-safe: env(safe-area-inset-bottom, 0px);
+  --nav-safe: max(env(safe-area-inset-bottom, 0px) - 16px, 0px);
+
+  /* Lifesum håller sig till 8px på knappar; kort i en mobilapp tål mer. */
+  --radius: 16px;
+  --radius-sm: 10px;
+  --radius-xs: 8px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* Dokumentet får aldrig scrolla — allt scrollande sker i .content-area.
+   Utan detta gummibandar iOS hela sidan och fasta element följer med. */
+html {
+  -webkit-text-size-adjust: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.5;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* inset: 0 i stället för 100dvh — iOS rapporterar ofta fel dvh vid appstart
+   som hemskärmsapp, vilket ger en förstorad nav-bar med tomrum under. */
+#root {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  max-width: 480px;
+  margin: 0 auto;
+  background: var(--bg-base);
+}
+
+.content-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: calc(var(--space-5) + env(safe-area-inset-top, 0px)) var(--space-5) calc(var(--nav-height) + var(--nav-safe) + 24px) var(--space-5);
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* Typografi — Lifesum kör stora, tajta rubriker och luftig brödtext. */
+h1, h2, h3 { font-weight: 700; letter-spacing: -0.03em; margin: 0; }
+h1 { font-size: 1.75rem; margin-bottom: 4px; line-height: 1.15; }
+h2 { font-size: 1.15rem; }
+h3 {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 700;
+}
+p { color: var(--text-secondary); font-size: 0.92rem; line-height: 1.6; }
+a { color: var(--accent-ink); }
+
+.panel {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  padding: var(--space-5);
+  margin-bottom: var(--space-3);
+  box-shadow: var(--shadow-card);
+}
+
+/* Inputs — 16px förhindrar att iOS zoomar in vid fokus */
+input, select, textarea {
+  width: 100%;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-hover);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 16px;
+  margin-bottom: 12px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  appearance: none;
+}
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+input::placeholder { color: var(--text-muted); }
+
+select {
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%235C5C5C' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  background-size: 16px;
+  padding-right: 44px;
+}
+
+input[type="date"] {
+  min-height: 50px;
+  color-scheme: light;
+}
+
+label {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+
+/* Knappar — versalt med spärrad text, som Lifesums CTA:er */
+button {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-xs);
+  padding: 15px 20px;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  touch-action: manipulation;
+}
+button:active { transform: scale(0.97); }
+button:disabled { opacity: 0.4; cursor: default; }
+button:disabled:active { transform: none; }
+
+.btn-ghost {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border-hover);
+}
+.btn-ghost:active { background: var(--bg-surface-hover); }
+
+.btn-danger { background: var(--danger); color: #fff; }
+
+/* Ikonknappar och navet ärver inte versalerna — där är text innehåll, inte CTA */
+.btn-icon {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  padding: 8px;
+  width: auto;
+  min-width: 40px;
+  min-height: 40px;
+  border-radius: 50%;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.btn-icon:active { color: var(--text-primary); background: var(--bg-sunken); }
+
+.btn-inline { width: auto; }
+.btn-pill {
+  width: auto;
+  padding: 9px 14px;
+  border-radius: 100px;
+  font-size: 0.72rem;
+}
+
+/* Layout */
+.flex-row { display: flex; align-items: center; gap: var(--space-3); }
+.flex-between { display: flex; align-items: center; justify-content: space-between; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+.truncate { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.stack { display: flex; flex-direction: column; gap: var(--space-2); }
+
+/* Segmenterad kontroll */
+.segmented {
+  display: flex;
+  gap: 2px;
+  background: var(--bg-sunken);
+  border-radius: 100px;
+  padding: 4px;
+  margin-bottom: var(--space-4);
+}
+.segmented button {
+  flex: 1;
+  padding: 9px 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border-radius: 100px;
+  background: transparent;
+  color: var(--text-secondary);
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+.segmented button.active {
+  background: var(--bg-surface);
+  color: var(--accent-ink);
+  box-shadow: 0 1px 3px rgba(14, 14, 14, 0.10);
+}
+.segmented.on-elevated { background: var(--bg-sunken); }
+
+/* Bottennav — absolut inom #root, kan aldrig följa med i en scroll */
+.bottom-nav {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: calc(var(--nav-height) + var(--nav-safe));
+  background: var(--nav-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-around;
+  align-items: stretch;
+  padding-bottom: var(--nav-safe);
+  z-index: 10;
+}
+
+/* Fyller glappet mellan #root:s underkant och skärmkanten på iOS som
+   hemskärmsapp. Sitter på #root och inte på .bottom-nav med flit: baren har
+   backdrop-filter, och WebKit klipper pseudo-element som spiller utanför ett
+   filtrerat element. */
+#root::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  height: 120px;
+  background: var(--nav-bg);
+  pointer-events: none;
+}
+
+.nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  color: var(--text-muted);
+  font-size: 0.62rem;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  padding: 0 6px;
+  min-width: 56px;
+  width: auto;
+  background: none;
+  transition: color 0.2s;
+}
+.nav-item.active { color: var(--accent-ink); font-weight: 700; }
+
+/* Upphöjd skannerknapp i mitten */
+.scan-nav-btn {
+  width: 52px;
+  height: 52px;
+  min-width: 52px;
+  border-radius: 50%;
+  padding: 0;
+  background: var(--accent);
+  color: #fff;
+  align-self: center;
+  transform: translateY(-8px);
+  box-shadow: 0 0 0 4px var(--bg-base), 0 6px 14px rgba(33, 186, 58, 0.35);
+  flex-shrink: 0;
+}
+.scan-nav-btn:active { transform: translateY(-8px) scale(0.94); }
+
+/* Bottom sheet */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(14, 14, 14, 0.35);
+  z-index: 30;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  opacity: 0;
+  animation: fadeIn 0.2s forwards;
+}
+.modal-sheet {
+  background: var(--bg-base);
+  width: 100%;
+  max-width: 480px;
+  max-height: 90dvh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  border-radius: 24px 24px 0 0;
+  padding: var(--space-3) var(--space-6) var(--space-6);
+  padding-bottom: calc(var(--space-6) + env(safe-area-inset-bottom, 24px));
+  transform: translateY(100%);
+  animation: slideUp 0.35s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+}
+.modal-sheet::before {
+  content: '';
+  display: block;
+  width: 36px;
+  height: 4px;
+  background: var(--border-hover);
+  border-radius: 2px;
+  margin: 0 auto 20px;
+}
+.sheet-cta {
+  position: sticky;
+  bottom: 0;
+  margin-top: 8px;
+  box-shadow: 0 -16px 20px -6px var(--bg-base);
+}
+
+@keyframes fadeIn { to { opacity: 1; } }
+@keyframes slideUp { to { transform: translateY(0); } }
+
+/* ---- Lagerlista ---- */
+.item-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+  box-shadow: var(--shadow-card);
+  /* Färgad kant efter hur bråttom det är */
+  border-left: 3px solid var(--edge, transparent);
+}
+.item-row:active { background: var(--bg-surface-hover); }
+
+.thumb {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-xs);
+  background: var(--bg-alt);
+  object-fit: contain;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+  overflow: hidden;
+}
+
+.item-name { font-weight: 500; font-size: 0.95rem; }
+.item-sub { font-size: 0.78rem; color: var(--text-muted); }
+
+.count-badge {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  background: var(--bg-alt);
+  border-radius: 100px;
+  padding: 3px 9px;
+  flex-shrink: 0;
+}
+
+.expiry-pill {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 100px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.expiry-expired { background: var(--danger-soft); color: var(--danger-ink); }
+.expiry-today   { background: var(--danger-soft); color: var(--danger-ink); }
+.expiry-soon    { background: var(--warn-soft); color: var(--warn-ink); }
+.expiry-week    { background: var(--bg-alt); color: var(--text-secondary); }
+.expiry-ok      { background: var(--bg-alt); color: var(--text-muted); }
+
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: var(--radius-sm);
+  padding: 13px 15px;
+  margin-bottom: var(--space-4);
+  font-size: 0.88rem;
+  font-weight: 500;
+}
+.banner-warn { background: var(--warn-soft); color: var(--warn-ink); }
+.banner-danger { background: var(--danger-soft); color: var(--danger-ink); }
+
+.empty-state {
+  text-align: center;
+  padding: var(--space-8) var(--space-4);
+  color: var(--text-muted);
+}
+.empty-state h2 { color: var(--text-primary); margin-bottom: 8px; }
+
+/* ---- Skanner ----
+   Kameravyn förblir mörk oavsett tema: det är en sökare, inte en sida. */
+.scanner {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: #000;
+  display: flex;
+  flex-direction: column;
+}
+.scanner video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.scanner-ui {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: calc(var(--space-4) + env(safe-area-inset-top, 0px)) var(--space-4)
+           calc(var(--space-6) + env(safe-area-inset-bottom, 0px));
+}
+/* Siktrutan: en ljus ram mitt i en nedtonad bild, så man vet var koden ska hamna */
+.scanner-frame {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+.scanner-window {
+  width: min(78vw, 300px);
+  height: 170px;
+  border-radius: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 0 0 100vmax rgba(0, 0, 0, 0.45);
+  transition: border-color 0.15s;
+}
+.scanner-window.hit { border-color: var(--accent); }
+.scanner-hint {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.85rem;
+  margin-top: 14px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+}
+.scanner-topbar { display: flex; justify-content: space-between; align-items: center; }
+.scanner-topbar button {
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  backdrop-filter: blur(6px);
+  border-radius: 100px;
+  width: auto;
+  padding: 10px 16px;
+  font-size: 0.7rem;
+}
+.scan-toast {
+  background: var(--bg-surface);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: var(--shadow-lift);
+}
+/* Platsväljaren ligger ovanpå kameran och behöver egen kontrast */
+.scanner .segmented { background: rgba(0, 0, 0, 0.45); backdrop-filter: blur(6px); }
+.scanner .segmented button { color: rgba(255, 255, 255, 0.75); }
+.scanner .segmented button.active { background: #fff; color: var(--accent-ink); }
+
+/* ---- Recept ---- */
+.recipe-card { margin-bottom: var(--space-3); }
+.tag {
+  display: inline-block;
+  font-size: 0.72rem;
+  padding: 4px 10px;
+  border-radius: 100px;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  margin: 0 6px 6px 0;
+  font-weight: 500;
+}
+.tag-missing { background: var(--warn-soft); color: var(--warn-ink); }
+
+/* QR-koden ritas som en SVG utan egen storlek — utan de här reglerna hamnar
+   den pytteliten i vänsterkanten av rutan. */
+.qr-box {
+  background: #fff;
+  padding: 14px;
+  border-radius: var(--radius-sm);
+  margin-top: 12px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border-color);
+}
+.qr-box svg {
+  width: min(230px, 100%);
+  height: auto;
+  display: block;
+  image-rendering: pixelated; /* skarpa moduler i stället för utsuddade kanter */
+}
+
+/* ---- Toast ---- */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--nav-height) + var(--nav-safe) + 16px);
+  transform: translateX(-50%);
+  background: var(--text-primary);
+  color: var(--bg-base);
+  padding: 13px 18px;
+  border-radius: 100px;
+  font-size: 0.88rem;
+  font-weight: 500;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  max-width: calc(100% - 32px);
+  box-shadow: var(--shadow-lift);
+  animation: toastIn 0.25s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.toast button {
+  width: auto;
+  padding: 0;
+  background: none;
+  color: #7BE38F;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.toast-danger { background: var(--danger-ink); color: #fff; }
+.toast-danger button { color: #fff; text-decoration: underline; }
+@keyframes toastIn {
+  from { opacity: 0; transform: translate(-50%, 12px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+.spin { animation: spinAnim 0.9s linear infinite; }
+@keyframes spinAnim { to { transform: rotate(360deg); } }
+
+.mono { font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .modal-sheet { transform: none; }
+  .modal-overlay { opacity: 1; }
+}
