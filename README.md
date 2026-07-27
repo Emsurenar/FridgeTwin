@@ -7,9 +7,11 @@ du kan laga på det som faktiskt finns hemma.
 
 ## Funktioner
 
+- **Kylskåpet, inte listan** — ett utrymme i taget (kyl, frys, skafferi) med innehållet ställt på hyllor efter hur bråttom det är: *Ät snart*, *Den här veckan*, *Håller sig*. Luckorna visar antal och en prick när något brådskar där inne.
 - **Streckkodsskanner** — kontinuerlig avläsning ur kameraströmmen (EAN-13/8, UPC-A/E, ITF). Kameran fortsätter efter varje träff, så en hel matkasse kan tömmas i ett svep. Autoläge lägger in varan direkt.
 - **Produktuppslag** — namn, märke, mängd och bild från [Open Food Facts](https://world.openfoodfacts.org). Okänd streckkod? Namnge varan en gång, så känns den igen nästa gång.
-- **Bäst före** — datum per vara, med snabbval eller genom att fota datumet på förpackningen (Claude läser det). Listan sorteras efter vad som går ut först, och en banner säger till om något brådskar.
+- **En vara, ett formulär** — namn (med förslag ur allt appen redan sett), antal, plats och bäst före på samma skärm. Snabbvalen för datum finns även i skannern, så det går att sätta redan vid inläsningen.
+- **Bäst före** — snabbval, datumfält, eller fota datumet på förpackningen och låt Claude läsa det.
 - **AI-igenkänning** — fota lösvikt eller en hel hylla; Claude föreslår varor som du bockar av innan de läggs in.
 - **Receptförslag** — tre rätter utifrån lagret, med extra vikt vid det som snart blir dåligt.
 - **Delat hushåll** — lagret bor på servern. Dela nyckeln (länk eller QR-kod) så ser hela hushållet samma kylskåp.
@@ -82,9 +84,11 @@ src/
     ai.js          Claude: bildigenkänning, datumläsning, recept
     qr.js          QR-kod för att dela nyckeln (lazy-laddad writer)
   components/
-    InventoryView       lagret, grupperat på plats och sorterat på utgång
+    FridgeView          luckor, hyllor och varorna som står på dem
+    Fields              antal, plats och bäst före — delas av inläggning och redigering
+    AddSheet            lägg in en vara, med förslag ur produktcachen
     ScannerView         helskärmsskanner med produktkort vid träff
-    ItemSheet           antal, plats, bäst före, förbrukad/slängd
+    ItemSheet           ändra en vara, eller markera den slut/slängd
     PhotoIdentifySheet  AI-förslag att bocka av
     RecipesView         receptförslag på begäran
 test/            enhetstester (npm test)
@@ -107,3 +111,9 @@ versala knappar och 8px-radier. DM Sans står in för deras TT Norms Pro.
 Grönt som fyllning tål vit text, men som *text* på ljus botten är `#21BA3A`
 oläsligt (ca 2,3:1). Därför finns två variabler: `--accent` fyller ytor,
 `--accent-ink` skriver text.
+
+Kylskåpsinsidan är svalare än appens varma off-white och har ett ljus uppe vid
+taket — det är det som skiljer "en lucka som står öppen" från "en lista på en
+sida". Hyllplanen är ritade glaskanter så att varorna står på något i stället
+för att sväva. Rutorna på en hylla är alltid lika höga: ojämna höjder var halva
+rörigheten i den gamla listan.

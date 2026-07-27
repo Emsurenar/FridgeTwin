@@ -86,5 +86,8 @@ export async function lookupProduct(barcode) {
   }
 }
 
+export const searchProducts = (q) =>
+  request(`/api/products?q=${encodeURIComponent(q)}`).then(r => r.products);
+
 export const teachProduct = (barcode, fields) =>
   request(`/api/product/${barcode}`, { method: 'PUT', body: fields });

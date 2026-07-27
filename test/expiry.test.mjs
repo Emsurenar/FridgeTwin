@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  parseIsoDate, daysUntil, expiryState, byExpiry, expirySummary, addDays, toIsoDate,
+  parseIsoDate, daysUntil, expiryState, byExpiry, expirySummary, addDays, toIsoDate, shelfOf,
 } from '../src/lib/expiry.js';
 
 // Fast "nu" mitt på dagen, så testerna inte beror på när de körs.
@@ -75,6 +75,17 @@ test('expirySummary räknar passerade och brådskande var för sig', () => {
     { expiresOn: null },
   ];
   assert.deepEqual(expirySummary(items, now), { expired: 1, urgent: 2, total: 5 });
+});
+
+test('shelfOf placerar varan på rätt hylla', () => {
+  const shelf = (iso) => shelfOf({ expiresOn: iso }, now);
+  assert.equal(shelf('2026-07-20'), 'now');   // passerad — ligger kvar i ögonhöjd
+  assert.equal(shelf('2026-07-27'), 'now');   // i dag
+  assert.equal(shelf('2026-07-30'), 'now');   // gräns: 3 dagar
+  assert.equal(shelf('2026-07-31'), 'week');  // gräns: 4 dagar
+  assert.equal(shelf('2026-08-03'), 'week');  // gräns: 7 dagar
+  assert.equal(shelf('2026-08-04'), 'later');
+  assert.equal(shelf(null), 'later');         // utan datum: längst ner
 });
 
 test('addDays + toIsoDate ger snabbvalen rätt datum', () => {

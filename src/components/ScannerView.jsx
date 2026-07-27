@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { X, Package, Loader2, Zap, ZapOff, Keyboard } from 'lucide-react';
 import { ensureReader, startCamera, stopCamera, scanLoop, buzz } from '../lib/scan';
 import { lookupProduct, teachProduct } from '../lib/api';
+import { addDays, toIsoDate } from '../lib/expiry';
 import { LOCATIONS } from '../lib/fmt';
 
 /*
@@ -13,6 +14,14 @@ import { LOCATIONS } from '../lib/fmt';
   Autoläge lägger in varan direkt vid träff. Det är snabbare men mindre
   förlåtande, så det är avstängt från början.
 */
+// Bara tre snabbval här. Skannern ska gå fort; exakta datum sätter man i varans
+// eget kort, där hela datumväljaren finns.
+const SCAN_DAYS = [
+  { days: 3, label: '3 dagar' },
+  { days: 7, label: '1 vecka' },
+  { days: 30, label: '1 månad' },
+];
+
 export default function ScannerView({ onAdd, onClose, onToast }) {
   const videoRef = useRef(null);
   const [error, setError] = useState(null);
@@ -22,10 +31,17 @@ export default function ScannerView({ onAdd, onClose, onToast }) {
   const [manual, setManual] = useState(false);
   const [pending, setPending] = useState(null); // { barcode, status, product?, name? }
   const [flash, setFlash] = useState(false);
+  // Bäst före redan vid träffen. Sitter kvar mellan varor, för en matkasse
+  // innehåller sällan bara en färskvara.
+  const [days, setDays] = useState(null);
 
   // Loopen startas en gång men behöver alltid färskaste läget — därför refs.
-  const stateRef = useRef({ auto, location, pending });
-  stateRef.current = { auto, location, pending };
+  const stateRef = useRef({ auto, location, pending, days });
+  stateRef.current = { auto, location, pending, days };
+
+  // Valt antal dagar → datum. Räknas ut vid inläggningen, inte vid valet, så
+  // att ett skanningspass över midnatt inte sätter gårdagens datum.
+  const expiryFrom = (d) => (d ? toIsoDate(addDays(new Date(), d)) : null);
 
   const handleDetect = async (barcode) => {
     // Låt den vara som redan ligger i kortet stå kvar tills den hanterats.
@@ -42,7 +58,11 @@ export default function ScannerView({ onAdd, onClose, onToast }) {
       }
       if (stateRef.current.auto) {
         setPending(null);
-        await onAdd({ barcode, location: stateRef.current.location });
+        await onAdd({
+          barcode,
+          location: stateRef.current.location,
+          expiresOn: expiryFrom(stateRef.current.days),
+        });
         return;
       }
       setPending({ barcode, status: 'found', product });
@@ -87,7 +107,7 @@ export default function ScannerView({ onAdd, onClose, onToast }) {
   const addFound = async () => {
     const { barcode } = pending;
     setPending(null);
-    await onAdd({ barcode, location });
+    await onAdd({ barcode, location, expiresOn: expiryFrom(days) });
   };
 
   const saveUnknown = async () => {
@@ -95,13 +115,13 @@ export default function ScannerView({ onAdd, onClose, onToast }) {
     if (!name) return;
     await teachProduct(pending.barcode, { name });
     setPending(null);
-    await onAdd({ barcode: pending.barcode, name, location });
+    await onAdd({ barcode: pending.barcode, name, location, expiresOn: expiryFrom(days) });
   };
 
   const addManual = async (name) => {
     if (!name.trim()) return;
     setManual(false);
-    await onAdd({ name: name.trim(), location });
+    await onAdd({ name: name.trim(), location, expiresOn: expiryFrom(days) });
   };
 
   return (
@@ -151,19 +171,29 @@ export default function ScannerView({ onAdd, onClose, onToast }) {
           )}
 
           {pending?.status === 'found' && (
-            <div className="scan-toast">
-              <div className="thumb">
-                {pending.product.imageUrl
-                  ? <img src={pending.product.imageUrl} alt="" width={44} height={44} style={{ objectFit: 'contain' }} />
-                  : <Package size={18} />}
-              </div>
-              <div className="truncate" style={{ flex: 1 }}>
-                <div className="item-name truncate">{pending.product.name}</div>
-                <div className="item-sub truncate">
-                  {[pending.product.brand, pending.product.quantity].filter(Boolean).join(' · ') || 'Open Food Facts'}
+            <div className="scan-toast" style={{ display: 'block' }}>
+              <div className="flex-row" style={{ marginBottom: 10 }}>
+                <div className="thumb">
+                  {pending.product.imageUrl
+                    ? <img src={pending.product.imageUrl} alt="" width={44} height={44} style={{ objectFit: 'contain' }} />
+                    : <Package size={18} />}
+                </div>
+                <div className="truncate" style={{ flex: 1 }}>
+                  <div className="item-name truncate">{pending.product.name}</div>
+                  <div className="item-sub truncate">
+                    {[pending.product.brand, pending.product.quantity].filter(Boolean).join(' · ') || 'Open Food Facts'}
+                  </div>
                 </div>
               </div>
-              <button className="btn-inline" style={{ padding: '10px 16px' }} onClick={addFound}>Lägg till</button>
+              <div className="chips">
+                {SCAN_DAYS.map(d => (
+                  <button key={d.days} className={`chip ${days === d.days ? 'chip-on' : ''}`}
+                    onClick={() => setDays(days === d.days ? null : d.days)}>
+                    {d.label}
+                  </button>
+                ))}
+              </div>
+              <button onClick={addFound}>Lägg till</button>
             </div>
           )}
 

@@ -9,7 +9,7 @@ import { fileToDataUrl } from '../lib/image';
   stillbild som ska tolkas av en modell är det klart bättre. Skannern behöver
   däremot strömmen, eftersom den avkodar många bildrutor i sekunden.
 */
-export default function PhotoButton({ label, busyLabel = 'Läser…', onPhoto, className = '', disabled }) {
+export default function PhotoButton({ label, busyLabel = 'Läser…', onPhoto, className = '', disabled, ...rest }) {
   const inputRef = useRef(null);
   const [busy, setBusy] = useState(false);
 
@@ -29,8 +29,10 @@ export default function PhotoButton({ label, busyLabel = 'Läser…', onPhoto, c
     <>
       <input ref={inputRef} type="file" accept="image/*" capture="environment"
         onChange={handle} style={{ display: 'none' }} />
-      <button className={className} disabled={disabled || busy} onClick={() => inputRef.current?.click()}>
+      <button className={className} disabled={disabled || busy}
+        onClick={() => inputRef.current?.click()} {...rest}>
         {busy ? <Loader2 size={17} className="spin" /> : <Camera size={17} />}
+        {/* Tom label = ren ikonknapp */}
         {busy ? busyLabel : label}
       </button>
     </>

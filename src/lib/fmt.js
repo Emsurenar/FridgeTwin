@@ -30,5 +30,18 @@ export function fmtExpiry(iso) {
   return fmtDate(iso);
 }
 
+// Kort variant för rutorna på hyllan. "går ut i morgon" bryter rad i en 98px
+// bred ruta och sabbar rutnätet; "i morgon" säger samma sak på en rad.
+export function fmtExpiryShort(iso) {
+  const days = daysUntil(iso);
+  if (days === null) return null;
+  if (days < -1) return `${Math.abs(days)} d sedan`;
+  if (days === -1) return 'i går';
+  if (days === 0) return 'i dag';
+  if (days === 1) return 'i morgon';
+  if (days <= 14) return `${days} dagar`;
+  return fmtDate(iso);
+}
+
 export const fmtCount = (item) =>
   item.count > 1 ? `${item.count} st` : (item.quantity || '');

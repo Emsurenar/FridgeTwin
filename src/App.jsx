@@ -2,11 +2,12 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Refrigerator, ChefHat, Settings as SettingsIcon, ScanLine } from 'lucide-react';
 import * as api from './lib/api';
 import { checkServerAi, aiReady } from './lib/ai';
-import InventoryView from './components/InventoryView';
+import FridgeView from './components/FridgeView';
 import RecipesView from './components/RecipesView';
 import SettingsView from './components/SettingsView';
 import ScannerView from './components/ScannerView';
 import ItemSheet from './components/ItemSheet';
+import AddSheet from './components/AddSheet';
 import PhotoIdentifySheet from './components/PhotoIdentifySheet';
 import Toast from './components/Toast';
 
@@ -16,6 +17,7 @@ export default function App() {
   const [tab, setTab] = useState('inventory');
   const [scannerOpen, setScannerOpen] = useState(false);
   const [photoOpen, setPhotoOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
   const [selected, setSelected] = useState(null);
   const [toast, setToast] = useState(null);
   const [serverAi, setServerAi] = useState(false);
@@ -45,6 +47,13 @@ export default function App() {
     load();
     api.getHealth().then(h => setPersistent(Boolean(h.persistent))).catch(() => {});
     checkServerAi().then(setServerAi);
+
+    // Lagret delas med hushållet, så det kan ha ändrats medan appen låg i
+    // bakgrunden. Hämta om när den kommer fram igen — billigare och mindre
+    // påträngande än en uppdateringsknapp man ändå glömmer trycka på.
+    const onVisible = () => { if (!document.hidden) load(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
   }, [load]);
 
   // Servern slår ihop dubbletter, så svaret kan vara antingen en ny rad eller
@@ -131,8 +140,8 @@ export default function App() {
     <>
       <div className="content-area" tabIndex={-1}>
         {tab === 'inventory' && (
-          <InventoryView items={items} loading={loading} onSelect={setSelected}
-            onOpenPhoto={() => (aiOk ? setPhotoOpen(true) : setTab('settings'))} onRefresh={load} />
+          <FridgeView items={items} loading={loading} onSelect={setSelected}
+            onAddClick={() => setAddOpen(true)} />
         )}
         {tab === 'recipes' && (
           <RecipesView items={items} aiOk={aiOk} onToast={showToast} onGoToSettings={() => setTab('settings')} />
@@ -173,6 +182,11 @@ export default function App() {
       {selected && (
         <ItemSheet item={selected} aiOk={aiOk} onClose={() => setSelected(null)}
           onPatch={handlePatch} onRemove={handleRemove} onToast={showToast} />
+      )}
+      {addOpen && (
+        <AddSheet aiOk={aiOk} onClose={() => setAddOpen(false)} onAdd={handleAdd} onToast={showToast}
+          onScan={() => { setAddOpen(false); setScannerOpen(true); }}
+          onPhoto={() => { setAddOpen(false); setPhotoOpen(true); }} />
       )}
       {photoOpen && (
         <PhotoIdentifySheet onClose={() => setPhotoOpen(false)} onAddMany={handleAddMany} onToast={showToast} />

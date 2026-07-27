@@ -62,6 +62,28 @@ app.get('/api/product/:barcode', async (req, res) => {
   }
 });
 
+/*
+  Sökning bland varor appen redan sett — både OFF-träffar och det du matat in
+  själv. Det är det som gör manuell inläggning snabb: andra gången du lägger in
+  gräddfil finns namn, märke, mängd och bild redan.
+*/
+app.get('/api/products', requireKey, async (req, res) => {
+  const q = String(req.query.q || '').trim();
+  if (q.length < 2) return res.json({ products: [] });
+  const like = `%${q.replaceAll('%', '').replaceAll('_', '')}%`;
+  const { rows } = await db.execute({
+    sql: `SELECT * FROM products WHERE name LIKE ? OR brand LIKE ?
+          ORDER BY length(name) ASC, fetched_at DESC LIMIT 8`,
+    args: [like, like],
+  });
+  res.json({
+    products: rows.map(r => ({
+      barcode: r.barcode, name: r.name, brand: r.brand,
+      quantity: r.quantity, imageUrl: r.image_url,
+    })),
+  });
+});
+
 // Manuell inmatning av en okänd streckkod — lärs in för nästa gång.
 app.put('/api/product/:barcode', requireKey, async (req, res) => {
   const { barcode } = req.params;

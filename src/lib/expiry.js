@@ -60,6 +60,24 @@ export function expiryState(iso, now = new Date()) {
 
 export const isUrgent = (state) => state === 'expired' || state === 'today' || state === 'soon';
 
+/*
+  Vilken hylla varan hamnar på. Hyllorna är hela ordningsprincipen i kylskåpet:
+  det som brådskar ligger i ögonhöjd, resten längre ner. Datumlösa varor hamnar
+  längst ner — de kan ändå inte gå ut.
+*/
+export const SHELVES = [
+  { id: 'now', label: 'Ät snart' },
+  { id: 'week', label: 'Den här veckan' },
+  { id: 'later', label: 'Håller sig' },
+];
+
+export function shelfOf(item, now = new Date()) {
+  const state = expiryState(item.expiresOn, now);
+  if (isUrgent(state)) return 'now';
+  if (state === 'week') return 'week';
+  return 'later';
+}
+
 // Sortering för lagerlistan: närmast utgång först, saknat datum sist.
 export function byExpiry(a, b) {
   const da = daysUntil(a.expiresOn);
