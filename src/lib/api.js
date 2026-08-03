@@ -87,6 +87,10 @@ export const restoreItem = (id) => request(`/api/inventory/${id}/restore`, { met
 // att det var sista exemplaret och att varan nu är markerad som slut.
 export const consumeOne = (id) => request(`/api/inventory/${id}/consume`, { method: 'POST' });
 
+// Lägg tillbaka varor servern tappat. Idempotent på id — svarar med hela lagret.
+export const syncItems = (items) =>
+  request('/api/inventory/sync', { method: 'POST', body: { items } });
+
 // null = okänd streckkod (404), vilket är ett väntat svar och inte ett fel.
 export async function lookupProduct(barcode) {
   try {

@@ -64,6 +64,22 @@ API-nyckeln hos Anthropic**, det är det enda som faktiskt begränsar kostnaden.
 > — fast det som händer är att man växlar mellan flera lager. Samma sak vid varje
 > cold start.
 
+### Spegeln — appen klarar sig utan Turso
+
+Säger `/api/health` att servern **inte** är beständig litar appen på telefonen i
+stället. Klienten håller en spegel av lagret i `localStorage`, och upptäcker den
+att servern tappat varor lägger den tillbaka dem via `POST /api/inventory/sync`.
+Återläggningen går på varans id med `ON CONFLICT DO NOTHING`, så den kan köras
+hur många gånger som helst utan att antal dubbleras.
+
+Med Turso inkopplat rörs spegeln inte. Där vore en återläggning ingen räddning
+utan ett sätt att återuppväcka varor som någon annan i hushållet medvetet tagit
+bort. Spegeln nollställs också när man byter hushållsnyckel — annars hade det
+gamla kylskåpets varor skjutits in i det nya.
+
+Det gör appen användbar utan molndatabas, men det är fortfarande en nödlösning:
+spegeln bor på *en* enhet, så delat hushåll kräver Turso.
+
 Schemat skapas automatiskt vid första anropet, så det finns inget migreringssteg.
 
 Lägg till appen på hemskärmen (*Dela → Lägg till på hemskärmen*) — då körs den i helskärm, och kameran fungerar eftersom Vercel serverar över HTTPS.

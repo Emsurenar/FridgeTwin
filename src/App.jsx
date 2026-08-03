@@ -3,6 +3,7 @@ import { Refrigerator, ChefHat, Settings as SettingsIcon, ScanLine, Loader2, Ale
 import * as api from './lib/api';
 import { checkServerAi, aiReady, suggestRecipes } from './lib/ai';
 import { loadLog, addEntry, removeEntry, clearLog, newEntryId } from './lib/recipeLog';
+import { loadMirror, saveMirror, clearMirror, missingFromServer } from './lib/mirror';
 import FridgeView from './components/FridgeView';
 import RecipesView from './components/RecipesView';
 import SettingsView from './components/SettingsView';
@@ -52,6 +53,9 @@ export default function App() {
   */
   const consuming = useRef(new Set());
   const recipesRunning = useRef(false);
+  // Spegeln får inte skrivas innan första hämtningen lyckats — annars sparar
+  // appen sitt tomma starttillstånd över det som faktiskt fanns.
+  const loadedOnce = useRef(false);
 
   const showToast = useCallback((message, type = 'success', action = null) => {
     clearTimeout(toastTimer.current);
@@ -62,7 +66,37 @@ export default function App() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      setItems(await api.getInventory());
+      /*
+        Health först, för svaret avgör vem som är sanningen. Säger servern att
+        den inte är beständig är dess databas den i /tmp, och på Vercel är den
+        per instans — då är telefonens spegel den enda som sett hela lagret, och
+        det servern saknar läggs tillbaka.
+
+        Med Turso inkopplat rörs spegeln inte. Där vore en återläggning ingen
+        räddning utan ett sätt att återuppväcka varor som någon annan i
+        hushållet medvetet tagit bort.
+      */
+      const health = await api.getHealth().catch(() => null);
+      const durable = health ? Boolean(health.persistent) : null;
+      setPersistent(durable);
+
+      let fresh = await api.getInventory();
+
+      if (durable === false) {
+        const missing = missingFromServer(loadMirror(), fresh);
+        if (missing.length) {
+          const res = await api.syncItems(missing);
+          fresh = res.items;
+          if (res.restored) {
+            showToast(res.restored === 1
+              ? '1 vara lades tillbaka' : `${res.restored} varor lades tillbaka`);
+          }
+        }
+      }
+
+      setItems(fresh);
+      saveMirror(fresh);
+      loadedOnce.current = true;
       setLoadError(null);
     } catch (e) {
       // Tomt lager och "kunde inte hämta lagret" ser likadant ut i datan men är
@@ -78,8 +112,7 @@ export default function App() {
   useEffect(() => {
     // En delad länk (#key=…) ska gälla direkt, innan lagret hämtas.
     api.adoptKeyFromUrl();
-    load();
-    api.getHealth().then(h => setPersistent(Boolean(h.persistent))).catch(() => {});
+    load(); // hämtar health själv — den avgör om spegeln ska användas
     checkServerAi().then(setServerAi);
 
     // Lagret delas med hushållet, så det kan ha ändrats medan appen låg i
@@ -95,6 +128,12 @@ export default function App() {
   useEffect(() => {
     if (tab === 'recipes') setRecipesUnseen(false);
   }, [tab]);
+
+  // Spegeln följer lagret. En effekt i stället för ett anrop i varje mutation:
+  // det är en plats att ha rätt på, inte sex.
+  useEffect(() => {
+    if (loadedOnce.current) saveMirror(items);
+  }, [items]);
 
   // Servern slår ihop dubbletter, så svaret kan vara antingen en ny rad eller
   // en uppdaterad. Ett enda upsert-mönster täcker båda.
@@ -254,6 +293,10 @@ export default function App() {
 
   const handleKeyChanged = (reset = false) => {
     if (reset) api.resetKey();
+    // Spegeln hör till *det* kylskåpet. Följer den med till en ny nyckel skulle
+    // återläggningen skjuta in det gamla hushållets varor i det nya.
+    clearMirror();
+    loadedOnce.current = false;
     setItems([]);
     load();
     setTab('inventory');

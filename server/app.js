@@ -235,6 +235,58 @@ app.post('/api/inventory', requireKey, async (req, res) => {
 });
 
 /*
+  Lägg tillbaka varor som servern tappat.
+
+  Utan TURSO_URL bor lagret i serverns /tmp, och på Vercel är den katalogen per
+  instans: två anrop kan träffa två olika tomma databaser. Klienten håller
+  därför en spegel av lagret lokalt och skickar hit det servern saknar.
+
+  ON CONFLICT DO NOTHING på id är det som gör det ofarligt att köra om. Vanliga
+  POST /api/inventory slår ihop dubbletter och hade räknat upp antalet varje
+  gång — här är varans id nyckeln, så en vara som redan finns lämnas i fred.
+  Raderna behåller sina ursprungliga id:n, vilket också gör att redigeringar och
+  borttagningar från andra enheter fortsätter peka rätt.
+*/
+const MAX_SYNC = 500;
+
+app.post('/api/inventory/sync', requireKey, async (req, res) => {
+  const incoming = Array.isArray(req.body?.items) ? req.body.items.slice(0, MAX_SYNC) : [];
+  await ensureHousehold(req.fridgeKey);
+
+  let restored = 0;
+  for (const raw of incoming) {
+    const id = String(raw?.id || '');
+    const name = cleanName(raw?.name);
+    // Utan id går raden inte att göra idempotent, och utan namn är den ingen vara.
+    if (!/^[a-zA-Z0-9-]{8,64}$/.test(id) || !name) continue;
+
+    const barcode = raw.barcode && isBarcode(String(raw.barcode)) ? String(raw.barcode) : null;
+    const location = LOCATIONS.has(raw.location) ? raw.location : 'fridge';
+    const expiresOn = isRealDate(raw.expiresOn) ? raw.expiresOn : null;
+
+    const { rowsAffected } = await db.execute({
+      sql: `INSERT INTO items (id, household_id, barcode, name, brand, quantity, image_url,
+                               location, count, added_at, expires_on)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO NOTHING`,
+      args: [id, req.householdId, barcode, name,
+        cleanName(raw.brand) || null, cleanName(raw.quantity) || null, httpUrl(raw.imageUrl),
+        location, cleanCount(raw.count),
+        typeof raw.addedAt === 'string' ? raw.addedAt.slice(0, 40) : new Date().toISOString(),
+        expiresOn],
+    });
+    restored += rowsAffected;
+  }
+
+  const { rows } = await db.execute({
+    sql: `SELECT * FROM items WHERE household_id = ? AND removed_at IS NULL
+          ORDER BY (expires_on IS NULL), expires_on ASC, added_at DESC`,
+    args: [req.householdId],
+  });
+  res.json({ restored, items: rows.map(rowToItem) });
+});
+
+/*
   Räkna ner ett steg — "jag åt upp en".
 
   Egen väg och inte PATCH { count: n }, för avsikten är *relativ* medan count är
