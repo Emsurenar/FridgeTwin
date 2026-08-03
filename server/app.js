@@ -3,7 +3,7 @@
 // proxas så Anthropic-nyckeln kan bo på servern.
 import express from 'express';
 import Anthropic from '@anthropic-ai/sdk';
-import { db, initDb, ensureHousehold, householdId, newId, usingTurso } from './db.js';
+import { db, initDb, ensureHousehold, householdId, newId, usingTurso, lastDbError, tursoHost } from './db.js';
 import { lookupProduct, getCachedProduct, saveProduct, isBarcode } from './off.js';
 
 const app = express();
@@ -48,9 +48,32 @@ const cleanCount = (v) => {
   return Number.isFinite(n) ? Math.min(MAX_COUNT, Math.max(1, n)) : 1;
 };
 
-// ---- Health ----
-app.get('/api/health', (_req, res) => {
-  res.json({ ok: true, serverAi: Boolean(process.env.ANTHROPIC_API_KEY), persistent: usingTurso });
+/*
+  Health svarar också på "varför fungerar det inte", för det är den frågan man
+  faktiskt har när man precis satt TURSO_URL och TURSO_TOKEN och något ändå är
+  fel. Värdnamn men aldrig token: nog för att se om man klistrat in fel sak i
+  fel ruta, utan att läcka något känsligt.
+*/
+app.get('/api/health', async (_req, res) => {
+  const turso = {
+    configured: usingTurso,
+    tokenSatt: Boolean(process.env.TURSO_TOKEN),
+    host: tursoHost(),
+  };
+  // Prova anslutningen på riktigt — utan det säger health "persistent: true"
+  // så fort variablerna finns, oavsett om de fungerar.
+  let ansluten = false;
+  try {
+    await initDb();
+    ansluten = true;
+  } catch { /* felet plockas ur lastDbError nedan */ }
+
+  res.json({
+    ok: true,
+    serverAi: Boolean(process.env.ANTHROPIC_API_KEY),
+    persistent: usingTurso && ansluten,
+    turso: { ...turso, ansluten, fel: lastDbError },
+  });
 });
 
 // ---- Hushållsnyckel ----

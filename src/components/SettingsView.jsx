@@ -1,17 +1,38 @@
 import { useEffect, useState } from 'react';
-import { QrCode, Copy, Trash2, ExternalLink, AlertTriangle } from 'lucide-react';
-import { getKey, setKey, shareUrl, getHistory } from '../lib/api';
+import { QrCode, Copy, Trash2, ExternalLink, AlertTriangle, UploadCloud } from 'lucide-react';
+import { getKey, setKey, shareUrl, getHistory, syncItems } from '../lib/api';
+import { loadMirror } from '../lib/mirror';
 import { getApiKey, setApiKey, getModel, setModel, MODELS } from '../lib/ai';
 import { qrSvg } from '../lib/qr';
 
-export default function SettingsView({ serverAi, persistent, onKeyChanged, onToast }) {
+export default function SettingsView({ serverAi, persistent, onKeyChanged, onReload, onToast }) {
   const [key, setKeyState] = useState(getKey());
   const [keyInput, setKeyInput] = useState('');
   const [apiKey, setApiKeyState] = useState(getApiKey());
   const [model, setModelState] = useState(getModel());
   const [qr, setQr] = useState(null);
   const [waste, setWaste] = useState(null);
+  const [pushing, setPushing] = useState(false);
+  const [mirrorCount, setMirrorCount] = useState(() => loadMirror(getKey()).length);
   const isLocalhost = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(window.location.hostname);
+
+  const pushMirror = async () => {
+    setPushing(true);
+    try {
+      const { restored } = await syncItems(loadMirror(getKey()));
+      onToast(restored
+        ? `${restored} ${restored === 1 ? 'vara lades' : 'varor lades'} tillbaka`
+        : 'Servern hade redan allt');
+      // onReload och inte onKeyChanged: den senare nollställer spegeln, vilket
+      // är precis vad man inte vill direkt efter att ha skickat upp den.
+      if (restored) onReload();
+      setMirrorCount(loadMirror(getKey()).length);
+    } catch (e) {
+      onToast(e.message, 'danger');
+    } finally {
+      setPushing(false);
+    }
+  };
 
   useEffect(() => {
     // Svinnsiffran kommer gratis ur historiken — borttagna varor raderas aldrig.
@@ -143,6 +164,28 @@ export default function SettingsView({ serverAi, persistent, onKeyChanged, onToa
           </div>
         </>
       )}
+
+      {/*
+        Spegeln lägger bara tillbaka varor av sig själv när servern säger att
+        den inte är beständig. Kopplar man in Turso blir servern sanningen —
+        och då är den tom, medan telefonen har hela lagret. Den här knappen är
+        vägen över, och den är medvetet manuell: en automatisk återläggning mot
+        en beständig server hade återuppväckt varor någon annan i hushållet
+        medvetet tagit bort.
+      */}
+      <h3 className="eyebrow">Flytta hit lagret</h3>
+      <div className="panel">
+        <p style={{ marginBottom: 12 }}>
+          Den här telefonen har en egen kopia av lagret. Har du precis kopplat in en
+          databas, eller ser kylskåpet tommare ut än det ska, kan du skicka upp kopian.
+          Varor som redan finns på servern lämnas i fred.
+        </p>
+        <button className="btn-ghost" onClick={pushMirror} disabled={pushing || !mirrorCount}>
+          <UploadCloud size={15} />
+          {pushing ? 'Skickar…'
+            : mirrorCount ? `Skicka upp ${mirrorCount} varor` : 'Inget sparat på den här telefonen'}
+        </button>
+      </div>
 
       <h3 className="eyebrow">Om</h3>
       <div className="panel">

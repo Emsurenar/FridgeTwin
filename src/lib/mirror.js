@@ -17,20 +17,33 @@
 
 const STORAGE = 'fridge_twin_mirror';
 
-export function loadMirror() {
+/*
+  Spegeln bär vilken hushållsnyckel den hör till, och läses aldrig ut under en
+  annan.
+
+  Utan det finns ett hål: adoptKeyFromUrl() byter nyckel när man öppnar en delad
+  länk, utan att röra spegeln. Misslyckas den första hämtningen efter det —
+  en kall lambda som svarar 504 räcker — ligger det förra hushållets varor kvar
+  i spegeln medan nyckeln pekar på det nya. Nästa återläggning hade då skjutit
+  in hela hushåll A:s lager i hushåll B, permanent och utan att någon märkte det
+  förrän det stod främmande mat i kylen.
+*/
+export function loadMirror(key) {
   try {
     const raw = localStorage.getItem(STORAGE);
     if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed.filter(i => i && i.id && i.name) : [];
+    const { key: sparad, items } = JSON.parse(raw) || {};
+    if (!Array.isArray(items)) return [];
+    if (key && sparad !== key) return []; // spegeln hör till ett annat kylskåp
+    return items.filter(i => i && i.id && i.name);
   } catch {
     return [];
   }
 }
 
-export function saveMirror(items) {
+export function saveMirror(key, items) {
   try {
-    localStorage.setItem(STORAGE, JSON.stringify(items));
+    localStorage.setItem(STORAGE, JSON.stringify({ key, items }));
   } catch { /* full kvot eller privat läge — spegeln är en bonus, inte ett krav */ }
 }
 

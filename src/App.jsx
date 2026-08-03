@@ -83,7 +83,7 @@ export default function App() {
       let fresh = await api.getInventory();
 
       if (durable === false) {
-        const missing = missingFromServer(loadMirror(), fresh);
+        const missing = missingFromServer(loadMirror(api.getKey()), fresh);
         if (missing.length) {
           const res = await api.syncItems(missing);
           fresh = res.items;
@@ -95,7 +95,7 @@ export default function App() {
       }
 
       setItems(fresh);
-      saveMirror(fresh);
+      saveMirror(api.getKey(), fresh);
       loadedOnce.current = true;
       setLoadError(null);
     } catch (e) {
@@ -132,7 +132,7 @@ export default function App() {
   // Spegeln följer lagret. En effekt i stället för ett anrop i varje mutation:
   // det är en plats att ha rätt på, inte sex.
   useEffect(() => {
-    if (loadedOnce.current) saveMirror(items);
+    if (loadedOnce.current) saveMirror(api.getKey(), items);
   }, [items]);
 
   // Servern slår ihop dubbletter, så svaret kan vara antingen en ny rad eller
@@ -359,7 +359,7 @@ export default function App() {
         )}
         {tab === 'settings' && (
           <SettingsView serverAi={serverAi} persistent={persistent}
-            onKeyChanged={handleKeyChanged} onToast={showToast} />
+            onKeyChanged={handleKeyChanged} onReload={load} onToast={showToast} />
         )}
       </div>
 

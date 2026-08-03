@@ -482,36 +482,90 @@ button:disabled:active { transform: none; }
 /* Banden och streckkoden bryter ur .content-area:s sidpadding och går kant till
    kant. En slab som når ut i kanten läser som en yta, inte som ett kort på en
    yta — och det är hela skillnaden mot rutnätet den ersätter. */
-.topbar {
+/*
+  Instrumentpanelen. Datum, sök, lägg till och streckkoden i ett mörkt block
+  som går ut i alla tre kanterna och upp under statusraden.
+
+  Tidigare svävade den mörka raden ensam mitt i en ljus sida och läste som en
+  rand. Nu har appen en arkitektur: ett mörkt instrument överst, en ljus
+  arbetsyta under. Det är också appens enda mörka yta — spenderar man svärtan
+  på två ställen slutar den betyda något.
+*/
+.instrument {
+  margin: 0 calc(var(--space-5) * -1) var(--space-5);
+  padding: var(--space-4) var(--space-4) 12px;
+  background: var(--natt);
+  border-radius: var(--radius);
+}
+/*
+  Bara när panelen faktiskt ligger överst drar den upp sig under statusraden.
+
+  Ligger lagringsvarningen före — vilket den gör på just den deploy utan Turso
+  som varningen finns för — hade den negativa marginalen dragit det mörka
+  blocket rakt ovanpå bannern och gömt den, samtidigt som panelen ändå inte nått
+  skärmkanten. En regel som förutsätter att man är först måste fråga om man är
+  det.
+*/
+.content-area > .instrument:first-child {
+  margin-top: calc((var(--space-5) + env(safe-area-inset-top, 0px)) * -1);
+  padding-top: calc(var(--space-4) + env(safe-area-inset-top, 0px));
+  border-radius: 0 0 var(--radius) var(--radius);
+}
+.instrument-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  margin-bottom: var(--space-3);
+  margin-bottom: 14px;
 }
 /* Dagens datum, inte appens namn. Det är referenspunkten för varenda
    "om 3 dagar" på sidan — och till skillnad från en rubrik ändras det. */
-.topbar-date {
+.instrument-date {
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 500;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--text-secondary);
+  color: rgba(255, 255, 255, 0.62);
 }
-.topbar-actions { display: flex; align-items: center; gap: 6px; }
+.instrument-actions { display: flex; align-items: center; gap: 8px; }
+
+.ikon-mork {
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+  padding: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.9);
+}
+.ikon-mork:active { background: rgba(255, 255, 255, 0.2); }
+.ikon-primar { background: var(--is); color: #fff; }
+.ikon-primar:active { background: #1287A0; }
+
+/* Sökfältet bor i panelen och tar streckkodens plats medan man söker — två
+   instrument på samma yta samtidigt hade varit ett för mycket. */
+.instrument-sok {
+  margin: 0;
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: #fff;
+}
+/* 0.55 och inte 0.45: fältet har en egen 8%-vit fyllning som ljusar upp ytan
+   under texten, så 0.45 landade på 4,26:1 — under kravet. */
+.instrument-sok::placeholder { color: rgba(255, 255, 255, 0.55); }
+.instrument-sok:focus {
+  border-color: rgba(255, 255, 255, 0.5);
+  box-shadow: none;
+}
 
 /* ---- Streckkoden ----
    Kylskåpets framtid ritad som den kod appen är byggd för att läsa. Mörk yta
    med flit: det är instrumentet, inte sidan, och det är också insidan av ett
    stängt skåp. Sidans enda mörka element — därför också dess fokuspunkt. */
-.rail {
-  margin-left: calc(var(--space-5) * -1);
-  margin-right: calc(var(--space-5) * -1);
-  margin-bottom: var(--space-5);
-  padding: 14px var(--space-4) 8px;
-  background: var(--natt);
-}
+/* Ligger inuti .instrument och behöver därför varken egen bakgrund eller egna
+   marginaler — panelen bär båda. */
+.rail { padding: 0; }
 .rail-plot {
   display: flex;
   align-items: flex-end;
@@ -646,23 +700,38 @@ section:first-of-type .eyebrow { margin-top: 0; }
 /* ---- Bandet: en vara som kräver ett beslut ----
    Radie 0 och kant till kant. Ett kort med rundade hörn och skugga hade gjort
    det till ett objekt bland andra; en slab är en yta man agerar på. */
+/*
+  En vara = en rad, kant till kant. Hårfina skiljelinjer inuti gruppen i stället
+  för glapp: raderna hör ihop, och 3px-glappen fick dem att läsa som lösryckta
+  kort. Gruppen får i stället luft omkring sig.
+*/
 .band {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
   margin-left: calc(var(--space-5) * -1);
   margin-right: calc(var(--space-5) * -1);
-  margin-bottom: 3px;
-  padding: 11px var(--space-5) 12px;
+  padding: 10px var(--space-4) 10px var(--space-5);
   background: var(--bg-elevated);
-  border-left: 3px solid transparent;
+  border-bottom: 1px solid var(--border-color);
+  animation: bandIn 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
 }
-.band-expired { border-left-color: var(--varm); }
-.band-today { border-left-color: var(--varm); }
-.band-soon { border-left-color: var(--ljum); }
+.band:last-child { border-bottom: none; }
+
+/* Raderna reser sig när kön ritas. Det gör inte listan snabbare, men det visar
+   att den är räknad just nu och inte hämtad ur en cache. */
+@keyframes bandIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
 
 .band-head {
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  width: 100%;
+  width: auto;
   padding: 0;
   background: none;
   border-radius: 0;
@@ -673,17 +742,23 @@ section:first-of-type .eyebrow { margin-top: 0; }
   letter-spacing: 0;
   color: var(--text-primary);
 }
-.band-head:active { transform: none; opacity: 0.65; }
+.band-head:active { transform: none; opacity: 0.6; }
 
 .band-img {
   flex-shrink: 0;
   display: grid;
   place-items: center;
-  border-radius: var(--radius-xs);
+  border-radius: 10px;
   background: var(--bg-alt);
   color: var(--text-muted);
   overflow: hidden;
 }
+/* Brickan bär brådskan. Svaga toner med flit: den ska läsas i ögonvrån när man
+   sveper förbi listan, inte konkurrera med nedräkningen bredvid. */
+.img-expired, .img-today { background: rgba(179, 58, 34, 0.12); }
+.img-expired .band-mono, .img-today .band-mono { color: var(--varm); opacity: 0.75; }
+.img-soon { background: rgba(201, 116, 28, 0.15); }
+.img-soon .band-mono { color: var(--ljum-ink); opacity: 0.75; }
 .band-img img { max-width: 100%; max-height: 100%; object-fit: contain; }
 /* Monogrammet är varans ansikte när bilden saknas. Displayfonten med tight
    spärr gör det till ett märke, inte till text som råkat hamna i en ruta. */
@@ -699,77 +774,59 @@ section:first-of-type .eyebrow { margin-top: 0; }
 .band-name {
   display: block;
   font-family: var(--font-display);
-  font-size: 1.02rem;
+  font-size: 1.06rem;
   font-weight: 600;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.022em;
   line-height: 1.2;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* Nedräkningen är en avläsning och sätts i mono, som alla tal i appen. */
+/* Underraden är maskinens sammanfattning: nedräkning, antal, plats. Mono och
+   spärrad, och färgen bär brådskan så att texten inte behöver skrika. */
 .band-when {
   display: block;
-  margin-top: 3px;
+  margin-top: 4px;
   font-family: var(--font-mono);
-  font-size: 0.66rem;
+  font-size: 0.63rem;
   font-weight: 500;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.09em;
   text-transform: uppercase;
-  color: var(--text-secondary);
+  color: var(--text-muted);
+  /* Får radbryta. Med tre ikonknappar till höger är textkolumnen 151 px på en
+     375px-skärm, och "om 3 dagar · 2 st · Skafferiet" behöver 195 — med nowrap
+     försvann platsen tyst, vilket är just den uppgift raden finns för. */
+  overflow-wrap: anywhere;
 }
-.band-expired .band-when { color: var(--varm); }
+.band-expired .band-when,
 .band-today .band-when { color: var(--varm); }
 .band-soon .band-when { color: var(--ljum-ink); }
 
-.band-meta {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-}
-/* Plats slutade vara en flik och blev en bokstav. Tre utrymmen ryms i K/F/S. */
-.band-glyph {
-  display: grid;
-  place-items: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 5px;
-  background: var(--bg-sunken);
-  font-family: var(--font-mono);
-  font-size: 0.66rem;
-  font-weight: 500;
-  color: var(--text-secondary);
-}
-.band-count {
-  font-family: var(--font-mono);
-  font-size: 0.68rem;
-  color: var(--text-secondary);
-}
-
 .band-actions {
   display: flex;
-  gap: 5px;
-  margin-top: 10px;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
 }
-/* Besluten är jämnstora och delar bredden. Ingen av dem är en primär CTA —
-   att slänga och att äta upp är lika giltiga svar på samma fråga. */
-.act {
-  flex: 1;
-  min-width: 0;
-  padding: 9px 4px;
-  background: var(--bg-base);
-  color: var(--text-primary);
-  border-radius: var(--radius-xs);
-  font-family: var(--font-body);
-  font-size: 0.82rem;
-  font-weight: 500;
-  letter-spacing: 0;
-  gap: 5px;
-  white-space: nowrap;
+/*
+  Besluten som ikoner. Tre etiketterade knappar per band gav femton grå
+  rektanglar per skärm och tvingade upp bandet till ~150 px — man såg två
+  beslut i taget i en vy vars hela syfte är att visa alla. Ikonerna är 40 px
+  tryckytor med aria-etiketter, och de etiketterade varianterna finns kvar i
+  varans kort ett tryck bort.
+*/
+.ikon-act {
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--text-muted);
+  transition: background 0.15s, color 0.15s;
 }
-.act:active { background: var(--bg-sunken); }
-.act-warm { color: var(--varm); }
+.ikon-act:active { background: var(--bg-base); color: var(--text-primary); }
+.ikon-act-warm:active { background: var(--danger-soft); color: var(--varm); }
 /* width: auto är inte kosmetik. Bas-knappen sätter width: 100%, och med
    flex-basis auto blir den bredden utgångsläget — knappen åt hela raden och
    tryckte ut varunamnet ur skärmen. */
@@ -787,19 +844,20 @@ section:first-of-type .eyebrow { margin-top: 0; }
 .row {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-2);
   margin-left: calc(var(--space-5) * -1);
   margin-right: calc(var(--space-5) * -1);
-  margin-bottom: 2px;
-  padding: 9px var(--space-5);
+  padding: 9px var(--space-4) 9px var(--space-5);
   background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border-color);
 }
+.row:last-child { border-bottom: none; }
 .row-head {
   flex: 1;
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 11px;
   padding: 0;
   background: none;
   border-radius: 0;
@@ -810,22 +868,19 @@ section:first-of-type .eyebrow { margin-top: 0; }
   letter-spacing: 0;
   color: var(--text-primary);
 }
-.row-head:active { transform: none; opacity: 0.65; }
+.row-head:active { transform: none; opacity: 0.6; }
+.row-text { flex: 1; min-width: 0; }
 .row-name {
-  flex: 1;
-  min-width: 0;
-  font-size: 0.92rem;
+  display: block;
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 500;
+  letter-spacing: -0.015em;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.row-when {
-  flex-shrink: 0;
-  font-family: var(--font-mono);
-  font-size: 0.66rem;
-  letter-spacing: 0.06em;
-  color: var(--text-muted);
-}
+.row .band-when { margin-top: 2px; font-size: 0.6rem; }
 
 /* ---- Håller sig ----
    Här är frågan inte "vad ska jag äta" utan "har jag senap hemma", och då är
@@ -863,6 +918,18 @@ section:first-of-type .eyebrow { margin-top: 0; }
 .chip-count {
   font-family: var(--font-mono);
   font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.summa {
+  margin-top: var(--space-6);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border-color);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
   color: var(--text-muted);
 }
 

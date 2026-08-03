@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Package, Search, Plus, X, Snowflake, Check, Trash2, CalendarPlus } from 'lucide-react';
 import { byExpiry, expiryState } from '../lib/expiry';
 import { queueSections } from '../lib/rail';
-import { fmtBandExpiry, fmtToday, locationGlyph, locationLabel, monogram } from '../lib/fmt';
+import { fmtBandExpiry, fmtToday, locationLabel, monogram } from '../lib/fmt';
 import Rail from './Rail';
 
 /*
@@ -19,12 +19,19 @@ import Rail from './Rail';
   en vara som håller sig är en 30 px bricka. Över sju dagar syns inte i kön alls.
 */
 
-// Bild när det finns en, annars monogram. Paketikonen är kvar bara för varor
-// vars namn inte ger någon bokstav alls.
+/*
+  Bild när det finns en, annars monogram.
+
+  Brickan tonas efter brådska. Tidigare låg brådskan i en 3px färgstapel längst
+  ut i vänsterkanten — en grov markör som fick kön att se ut som en
+  uppgiftslista. Nu bär brickan informationen i stället, och den var ändå det
+  enda elementet på raden som inte gjorde något.
+*/
 function Thumb({ item, size }) {
   const mark = monogram(item.name);
+  const state = expiryState(item.expiresOn);
   return (
-    <div className="band-img" style={{ width: size, height: size }}>
+    <div className={`band-img img-${state}`} style={{ width: size, height: size }}>
       {item.imageUrl
         ? <img src={item.imageUrl} alt="" loading="lazy" />
         : mark === '?'
@@ -34,65 +41,66 @@ function Thumb({ item, size }) {
   );
 }
 
-// Raden säger var varan ligger och hur många det är — det som inte får plats i
-// namnet men avgör om man går till frysen eller kylen.
-function Meta({ item }) {
-  return (
-    <span className="band-meta">
-      <span className="band-glyph" title={locationLabel(item.location)}>
-        {locationGlyph(item.location)}
-      </span>
-      {item.count > 1 && <span className="band-count">{item.count} st</span>}
-    </span>
-  );
+/*
+  Underraden: nedräkning, antal och plats på en rad i stället för i var sin ruta
+  på höjden. Platsen skrivs ut — "Kylen" läses direkt medan ett K i en grå ruta
+  är en kod man måste lära sig, och den rutan var dessutom egen visuell möbel.
+*/
+function Under({ item, when }) {
+  const bitar = [];
+  if (when) bitar.push(when);
+  if (item.count > 1) bitar.push(`${item.count} st`);
+  bitar.push(locationLabel(item.location));
+
+  /*
+    Skiljetecknet är ett riktigt tecken, inte ett tomt element med bakgrundsfärg.
+    Blink och WebKit lägger inte in blanksteg mellan inline-syskon när ett
+    tillgängligt namn räknas ut, så prickelementet gav uppläsningen
+    "om 3 dagar2 stKylen" — två sammanslagna ord där skärmen visar tre delar.
+  */
+  return <span className="band-when">{bitar.join(' · ')}</span>;
 }
 
 /*
-  Bandet: en vara som kräver ett beslut. Passerat får två knappar för att det
-  bara finns två sanningar om utgången mat. Brådskande får "Frys in", för de tre
-  utrymmena är egentligen tre hastigheter på förfall — att frysa in är att pausa
-  klockan, och det är en räddning och inte en flytt.
+  Bandet: en vara som kräver ett beslut.
+
+  Besluten är ikoner och inte fullbreda knappar. Tre etiketterade knappar per
+  band gav femton grå rektanglar på en skärm och tvingade ner bandet till
+  ~150 px — man såg två beslut åt gången i en vy vars hela syfte är att visa
+  alla. Nu är bandet en rad på 68 px och samma skärm rymmer sju. De etiketterade
+  varianterna finns kvar ett tryck bort, i varans eget kort.
+
+  Frys in är räddningen: de tre utrymmena är tre hastigheter på förfall, och att
+  frysa in är att pausa klockan.
 */
 function Band({ item, onSelect, onRemove, onFreeze }) {
   const state = expiryState(item.expiresOn);
-  const passerat = state === 'expired';
 
   return (
     <article id={`vara-${item.id}`} className={`band band-${state}`}>
       <button type="button" className="band-head" onClick={() => onSelect(item)}>
-        <Thumb item={item} size={passerat ? 56 : 48} />
+        <Thumb item={item} size={44} />
         <span className="band-text">
           <span className="band-name">{item.name}</span>
-          <span className="band-when">{fmtBandExpiry(item.expiresOn)}</span>
+          <Under item={item} when={fmtBandExpiry(item.expiresOn)} />
         </span>
-        <Meta item={item} />
       </button>
 
       <div className="band-actions">
-        {passerat ? (
-          <>
-            <button className="act act-warm" onClick={() => onRemove(item, 'waste')}>
-              <Trash2 size={15} /> Slängd
-            </button>
-            <button className="act" onClick={() => onRemove(item, 'consumed')}>
-              <Check size={15} /> Åt ändå
-            </button>
-          </>
-        ) : (
-          <>
-            {item.location !== 'freezer' && (
-              <button className="act" onClick={() => onFreeze(item)}>
-                <Snowflake size={15} /> Frys in
-              </button>
-            )}
-            <button className="act" onClick={() => onRemove(item, 'consumed')}>
-              <Check size={15} /> Slut
-            </button>
-            <button className="act act-warm" onClick={() => onRemove(item, 'waste')}>
-              <Trash2 size={15} /> Slängd
-            </button>
-          </>
+        {item.location !== 'freezer' && state !== 'expired' && (
+          <button className="ikon-act" onClick={() => onFreeze(item)}
+            aria-label={`Frys in ${item.name}`}>
+            <Snowflake size={17} />
+          </button>
         )}
+        <button className="ikon-act" onClick={() => onRemove(item, 'consumed')}
+          aria-label={`${item.name} är uppäten`}>
+          <Check size={17} />
+        </button>
+        <button className="ikon-act ikon-act-warm" onClick={() => onRemove(item, 'waste')}
+          aria-label={`Släng ${item.name}`}>
+          <Trash2 size={17} />
+        </button>
       </div>
     </article>
   );
@@ -104,11 +112,13 @@ function Row({ item, onSelect, action }) {
   return (
     <div id={`vara-${item.id}`} className="row">
       <button type="button" className="row-head" onClick={() => onSelect(item)}>
-        <Thumb item={item} size={32} />
-        <span className="row-name">{item.name}</span>
-        <Meta item={item} />
+        <Thumb item={item} size={34} />
+        <span className="row-text">
+          <span className="row-name">{item.name}</span>
+          <Under item={item} when={action ? null : fmtBandExpiry(item.expiresOn)} />
+        </span>
       </button>
-      {action || <span className="row-when">{fmtBandExpiry(item.expiresOn)}</span>}
+      {action}
     </div>
   );
 }
@@ -193,23 +203,34 @@ export default function FridgeView({ items, loading, error, onRetry, onSelect, o
 
   return (
     <>
-      <div className="topbar">
-        <span className="topbar-date">{fmtToday()}</span>
-        <div className="topbar-actions">
-          <button className="btn-icon" aria-label={searching ? 'Stäng sök' : 'Sök vara'}
-            onClick={() => { setSearching(s => !s); setQuery(''); }}>
-            {searching ? <X size={20} /> : <Search size={20} />}
-          </button>
-          <button className="btn-round-accent" onClick={onAddClick} aria-label="Lägg till vara">
-            <Plus size={20} strokeWidth={2.5} />
-          </button>
+      {/*
+        Instrumentpanelen: datum, sök, lägg till och streckkoden i ett mörkt
+        block. Tidigare svävade den mörka raden ensam mitt i en ljus sida och
+        läste som en rand; nu har appen en arkitektonisk topp — ett mörkt
+        instrument och en ljus arbetsyta — och det är den enda mörka ytan i hela
+        appen.
+      */}
+      <div className="instrument">
+        <div className="instrument-head">
+          <span className="instrument-date">{fmtToday()}</span>
+          <div className="instrument-actions">
+            <button className="ikon-mork" aria-label={searching ? 'Stäng sök' : 'Sök vara'}
+              onClick={() => { setSearching(s => !s); setQuery(''); }}>
+              {searching ? <X size={19} /> : <Search size={19} />}
+            </button>
+            <button className="ikon-mork ikon-primar" onClick={onAddClick} aria-label="Lägg till vara">
+              <Plus size={19} strokeWidth={2.4} />
+            </button>
+          </div>
         </div>
-      </div>
 
-      {searching && (
-        <input autoFocus value={query} onChange={e => setQuery(e.target.value)}
-          placeholder="Sök i hela kylskåpet" />
-      )}
+        {searching ? (
+          <input className="instrument-sok" autoFocus value={query}
+            onChange={e => setQuery(e.target.value)}
+            aria-label="Sök i hela kylskåpet"
+            placeholder="Sök i hela kylskåpet" />
+        ) : items.length > 0 && <Rail items={items} onPick={scrollTo} />}
+      </div>
 
       {hits ? (
         <>
@@ -224,8 +245,6 @@ export default function FridgeView({ items, loading, error, onRetry, onSelect, o
         </div>
       ) : (
         <>
-          <Rail items={items} onPick={scrollTo} />
-
           {attGora.length > 0 && (
             <section>
               <Eyebrow n={attGora.length}>Att göra</Eyebrow>
@@ -271,6 +290,14 @@ export default function FridgeView({ items, loading, error, onRetry, onSelect, o
           {!attGora.length && !veckan.length && (
             <p className="lugnt">Inget brådskar den närmaste veckan.</p>
           )}
+
+          {/* Sidan behöver ett slut. Totalen står här och inte överst: den
+              besvarar ingen fråga man har när man öppnar appen, men den svarar
+              på "var det allt?" när man skrollat färdigt. */}
+          <footer className="summa">
+            {[`${items.length} varor`, utanDatum.length && `${utanDatum.length} utan datum`]
+              .filter(Boolean).join(' · ')}
+          </footer>
         </>
       )}
     </>

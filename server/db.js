@@ -82,12 +82,33 @@ const SCHEMA = [
   `CREATE INDEX IF NOT EXISTS idx_items_household ON items (household_id, removed_at)`,
 ];
 
+/*
+  Senaste anslutningsfelet, så /api/health kan säga *vad* som är fel i stället
+  för bara att något är det. "Databasen är inte tillgänglig" räcker inte när man
+  precis klistrat in två miljövariabler och en av dem är fel — då vill man veta
+  om det är fel URL, fel token eller en databas som inte finns.
+*/
+export let lastDbError = null;
+
+// Värdnamnet ur TURSO_URL, aldrig token. Nog för att se om man klistrat in fel
+// sak i fel ruta, utan att läcka något känsligt.
+export function tursoHost() {
+  if (!process.env.TURSO_URL) return null;
+  try {
+    return new URL(process.env.TURSO_URL).host;
+  } catch {
+    return 'OGILTIG URL';
+  }
+}
+
 let ready = null;
 export function initDb() {
   if (!ready) {
     ready = (async () => {
       for (const stmt of SCHEMA) await db.execute(stmt);
+      lastDbError = null;
     })().catch(err => {
+      lastDbError = err?.message || String(err);
       ready = null; // låt nästa anrop försöka igen i stället för att fastna
       throw err;
     });

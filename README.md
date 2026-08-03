@@ -64,6 +64,70 @@ API-nyckeln hos Anthropic**, det är det enda som faktiskt begränsar kostnaden.
 > — fast det som händer är att man växlar mellan flera lager. Samma sak vid varje
 > cold start.
 
+### Koppla in Turso — steg för steg
+
+Tio minuter, en gång. Allt utom sista steget görs i terminalen.
+
+**1. Installera CLI:t och skapa ett konto**
+
+```bash
+brew install tursodatabase/tap/turso
+turso auth signup     # har du redan konto: turso auth login
+```
+
+Webbläsaren öppnas för inloggning. Gratisnivån räcker med marginal för ett
+kylskåp.
+
+**2. Skapa databasen och hämta de två värdena**
+
+```bash
+turso db create fridgetwin
+turso db show fridgetwin --url        # värde 1
+turso db tokens create fridgetwin     # värde 2
+```
+
+Det är **två separata värden** från två separata kommandon — token ligger inte i
+URL:en:
+
+| Kommando | Ser ut som | Miljövariabel |
+|---|---|---|
+| `turso db show … --url` | `libsql://fridgetwin-dittnamn.turso.io` | `TURSO_URL` |
+| `turso db tokens create …` | `eyJhbGciOiJFZERTQSIs…` (några hundra tecken) | `TURSO_TOKEN` |
+
+Kopiera båda någonstans innan du går vidare. Token visas bara en gång — tappar
+du bort den kör du bara kommandot igen och får en ny.
+
+**3. Lägg in dem i Vercel**
+
+*Vercel → ditt projekt → Settings → Environment Variables.* Lägg till en i
+taget, för **alla** miljöer (Production, Preview, Development):
+
+| Name | Value |
+|---|---|
+| `TURSO_URL` | värde 1 — `libsql://…turso.io` |
+| `TURSO_TOKEN` | värde 2 — den långa slumpsträngen |
+
+**4. Deploya om**
+
+Variablerna läses vid build, inte i efterhand — en befintlig deploy plockar
+alltså inte upp dem. *Deployments → senaste → ⋯ → Redeploy.* Schemat skapas
+automatiskt vid första anropet, så det finns inget migreringssteg.
+
+**5. Kontrollera**
+
+Öppna `https://din-app.vercel.app/api/health`. Det ska stå `"persistent": true`.
+Gör det det är du klar: varningen i appen försvinner och lagret ligger kvar.
+
+**6. Flytta över det du redan har**
+
+Servern är nu ny och tom, medan telefonen har hela lagret i sin spegel. Gå till
+*Inställningar → Flytta hit lagret* och tryck **Skicka upp N varor**. Den går på
+varje varas id, så den är ofarlig att köra flera gånger och rör inte det som
+redan finns.
+
+Gör det från den telefon som har det aktuella lagret. Först därefter delar du
+nyckeln med resten av hushållet.
+
 ### Spegeln — appen klarar sig utan Turso
 
 Säger `/api/health` att servern **inte** är beständig litar appen på telefonen i
