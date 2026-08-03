@@ -2,9 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 import { X, Package, Loader2, Zap, ZapOff, Keyboard } from 'lucide-react';
 import { ensureReader, startCamera, stopCamera, scanLoop, buzz } from '../lib/scan';
 import { lookupProduct, teachProduct } from '../lib/api';
-import { addDays, toIsoDate } from '../lib/expiry';
-import { LOCATIONS, locationLabel } from '../lib/fmt';
+import { addDays, toIsoDate, ISO_DATE_RE } from '../lib/expiry';
+import { readBestBefore } from '../lib/ai';
+import { LOCATIONS, locationLabel, fmtExpiry } from '../lib/fmt';
 import { alreadyHome, summarize, totalCount } from '../lib/owned';
+import { Stepper } from './Fields';
+import PhotoButton from './PhotoButton';
 
 /*
   Helskärmsskanner. Kameran fortsätter rulla efter varje träff så att en hel
@@ -23,7 +26,7 @@ const SCAN_DAYS = [
   { days: 30, label: '1 månad' },
 ];
 
-export default function ScannerView({ defaultLocation = 'fridge', items = [], onAdd, onConsumeOne, onClose, onToast }) {
+export default function ScannerView({ defaultLocation = 'fridge', items = [], aiOk, onAdd, onConsumeOne, onLocationChange, onClose, onToast }) {
   const videoRef = useRef(null);
   const [error, setError] = useState(null);
   const [starting, setStarting] = useState(true);
@@ -32,17 +35,48 @@ export default function ScannerView({ defaultLocation = 'fridge', items = [], on
   const [manual, setManual] = useState(false);
   const [pending, setPending] = useState(null); // { barcode, status, product?, name? }
   const [flash, setFlash] = useState(false);
-  // Bäst före redan vid träffen. Sitter kvar mellan varor, för en matkasse
-  // innehåller sällan bara en färskvara.
+  /*
+    Bäst före på två sätt, och de utesluter varandra.
+
+    Snabbvalen är *relativa* och sitter kvar mellan varor, för en matkasse
+    innehåller sällan bara en färskvara. Fotot ger ett *absolut* datum läst från
+    förpackningen och gäller bara den varan — nästa förpackning har ett eget
+    tryck. Därför nollas fotodatumet efter varje inläggning medan dagarna står
+    kvar.
+  */
   const [days, setDays] = useState(null);
+  const [photoDate, setPhotoDate] = useState(null);
+  // Antalet hör till förpackningen framför kameran, inte till passet. Två liter
+  // mjölk är två tryck på plus, men nästa vara börjar om på ett.
+  const [count, setCount] = useState(1);
 
   // Loopen startas en gång men behöver alltid färskaste läget — därför refs.
   const stateRef = useRef({ auto, location, pending, days });
   stateRef.current = { auto, location, pending, days };
 
   // Valt antal dagar → datum. Räknas ut vid inläggningen, inte vid valet, så
-  // att ett skanningspass över midnatt inte sätter gårdagens datum.
+  // att ett skanningspass över midnatt inte sätter gårdagens datum. Ett fotat
+  // datum är redan absolut och går före.
   const expiryFrom = (d) => (d ? toIsoDate(addDays(new Date(), d)) : null);
+  const expiryNow = () => photoDate || expiryFrom(days);
+
+  // Efter varje inlagd vara: antal och fotodatum tillbaka till utgångsläget,
+  // plats och snabbval kvar.
+  const resetPerItem = () => { setCount(1); setPhotoDate(null); };
+
+  const handleDatePhoto = async (dataUrl) => {
+    try {
+      const { date, raw } = await readBestBefore(dataUrl);
+      if (!date || !ISO_DATE_RE.test(date)) {
+        return onToast(raw ? `Kunde inte tolka "${raw}"` : 'Hittade inget datum på bilden', 'danger');
+      }
+      setPhotoDate(date);
+      setDays(null); // ett läst datum slår ett gissat
+      onToast(`Läste ${fmtExpiry(date)}`);
+    } catch (e) {
+      onToast(e.message, 'danger');
+    }
+  };
 
   const handleDetect = async (barcode) => {
     /*
@@ -115,8 +149,10 @@ export default function ScannerView({ defaultLocation = 'fridge', items = [], on
 
   const addFound = async () => {
     const { barcode } = pending;
+    const payload = { barcode, location, count, expiresOn: expiryNow() };
     setPending(null);
-    await onAdd({ barcode, location, expiresOn: expiryFrom(days) });
+    resetPerItem();
+    await onAdd(payload);
   };
 
   /*
@@ -131,9 +167,11 @@ export default function ScannerView({ defaultLocation = 'fridge', items = [], on
     if (!name || savingUnknown.current) return;
     savingUnknown.current = true;
     try {
+      const payload = { barcode: pending.barcode, name, location, count, expiresOn: expiryNow() };
       await teachProduct(pending.barcode, { name });
       setPending(null);
-      await onAdd({ barcode: pending.barcode, name, location, expiresOn: expiryFrom(days) });
+      resetPerItem();
+      await onAdd(payload);
     } finally {
       savingUnknown.current = false;
     }
@@ -141,8 +179,10 @@ export default function ScannerView({ defaultLocation = 'fridge', items = [], on
 
   const addManual = async (name) => {
     if (!name.trim()) return;
+    const payload = { name: name.trim(), location, count, expiresOn: expiryNow() };
     setManual(false);
-    await onAdd({ name: name.trim(), location, expiresOn: expiryFrom(days) });
+    resetPerItem();
+    await onAdd(payload);
   };
 
   return (
@@ -177,7 +217,9 @@ export default function ScannerView({ defaultLocation = 'fridge', items = [], on
           {!pending && !manual && !error && (
             <div className="segmented" style={{ margin: 0 }}>
               {LOCATIONS.map(l => (
-                <button key={l.id} className={location === l.id ? 'active' : ''} onClick={() => setLocation(l.id)}>
+                <button key={l.id} className={location === l.id ? 'active' : ''}
+                  aria-pressed={location === l.id}
+                  onClick={() => { setLocation(l.id); onLocationChange?.(l.id); }}>
                   {l.label}
                 </button>
               ))}
@@ -212,15 +254,38 @@ export default function ScannerView({ defaultLocation = 'fridge', items = [], on
                   ska gå att göra utan att lämna sökaren. */}
               <Owned items={items} barcode={pending.barcode} onConsumeOne={onConsumeOne} />
 
+              <div className="scan-row">
+                <span className="scan-label">Antal</span>
+                <Stepper value={count} onChange={setCount} />
+              </div>
+
+              <span className="scan-label">Bäst före</span>
               <div className="chips">
                 {SCAN_DAYS.map(d => (
-                  <button key={d.days} className={`chip ${days === d.days ? 'chip-on' : ''}`}
-                    onClick={() => setDays(days === d.days ? null : d.days)}>
+                  <button key={d.days} className={`chip ${!photoDate && days === d.days ? 'chip-on' : ''}`}
+                    onClick={() => { setPhotoDate(null); setDays(days === d.days ? null : d.days); }}>
                     {d.label}
                   </button>
                 ))}
+                {/* Fota datumet i stället för att gissa. Systemkameran via
+                    <input capture> ger skärpa och blixt, vilket en avläsning av
+                    liten tryckt text behöver mer än skannerströmmen gör. */}
+                {aiOk && (
+                  <PhotoButton className="chip chip-foto" label="Fota datumet"
+                    busyLabel="Läser…" onPhoto={handleDatePhoto} />
+                )}
               </div>
-              <button onClick={addFound}>Lägg till</button>
+
+              {photoDate && (
+                <p className="scan-last">
+                  Läst från förpackningen: <strong>{fmtExpiry(photoDate)}</strong>
+                  <button className="link-btn" onClick={() => setPhotoDate(null)}>Ta bort</button>
+                </p>
+              )}
+
+              <button onClick={addFound}>
+                Lägg till{count > 1 ? ` ${count} st` : ''}
+              </button>
             </div>
           )}
 

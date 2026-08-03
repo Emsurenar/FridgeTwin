@@ -1,118 +1,164 @@
 import { useMemo, useState } from 'react';
-import { Package, Search, Plus, X, Refrigerator, Snowflake, Archive } from 'lucide-react';
-import { byExpiry, expiryState, isUrgent, shelfOf, SHELVES } from '../lib/expiry';
-import { fmtExpiryShort, locationLabel } from '../lib/fmt';
+import { Package, Search, Plus, X, Snowflake, Check, Trash2, CalendarPlus } from 'lucide-react';
+import { byExpiry, expiryState } from '../lib/expiry';
+import { queueSections } from '../lib/rail';
+import { fmtBandExpiry, fmtToday, locationGlyph, locationLabel, monogram } from '../lib/fmt';
+import Rail from './Rail';
 
 /*
-  Kylskåpet, inte listan.
+  Kön, inte skåpet.
 
-  Två saker gjorde den gamla listan rörig när lagret växte: allt låg i ett enda
-  svep, och den enda ordningen var utgångsdatum. Här öppnar man ett utrymme i
-  taget (kyl, frys, skafferi) och ser innehållet ställt på hyllor efter hur
-  bråttom det är. Det tredelar innehållet på skärmen och matchar hur man
-  faktiskt letar: man öppnar en lucka och tittar på en hylla.
+  Den gamla vyn ritade en möbel: tre luckor som segmentkontroll, en låda med
+  hyllor, och ett rutnät av lika stora rutor. Den kostade ~290 px krom som aldrig
+  ändrades, och den kunde inte svara på appens viktigaste fråga — vad brådskar? —
+  utan att man öppnade en lucka i taget och la ihop svaret i huvudet.
 
-  Rutorna är bildförst och tre i bredd, så tjugo varor får plats utan att bli
-  en skrollrulle. Namnet räcker för att känna igen en vara man själv ställt in;
-  detaljerna finns ett tryck bort.
+  Nu är den lodräta axeln tid och plats bara en bokstav på raden. Allt som
+  brådskar i kyl, frys och skafferi står i samma lista, och skärmytan fördelas
+  efter hur mycket varan förtjänar: ett passerat band är 112 px med två beslut,
+  en vara som håller sig är en 30 px bricka. Över sju dagar syns inte i kön alls.
 */
 
-const DOORS = [
-  { id: 'fridge', label: 'Kylen', icon: Refrigerator },
-  { id: 'freezer', label: 'Frysen', icon: Snowflake },
-  { id: 'pantry', label: 'Skafferiet', icon: Archive },
-];
-
-const EMPTY_TEXT = {
-  fridge: 'Kylen är tom.',
-  freezer: 'Frysen är tom.',
-  pantry: 'Skafferiet är tomt.',
-};
-
-function Tile({ item, onClick, showLocation }) {
-  const state = expiryState(item.expiresOn);
-  const urgent = isUrgent(state);
-  // I en sökning är svaret på "var ligger den?" halva poängen med att söka.
-  const sub = showLocation
-    ? locationLabel(item.location)
-    : item.quantity || fmtExpiryShort(item.expiresOn) || '';
-
+// Bild när det finns en, annars monogram. Paketikonen är kvar bara för varor
+// vars namn inte ger någon bokstav alls.
+function Thumb({ item, size }) {
+  const mark = monogram(item.name);
   return (
-    <button className={`tile ${urgent ? `tile-${state}` : ''}`} onClick={onClick}>
-      <div className="tile-img">
-        {item.imageUrl
-          ? <img src={item.imageUrl} alt="" loading="lazy" />
-          : <Package size={22} strokeWidth={1.5} />}
-        {item.count > 1 && <span className="tile-count">{item.count}</span>}
-      </div>
-      <span className="tile-name">{item.name}</span>
-      {urgent && !showLocation
-        ? <span className={`tile-expiry expiry-${state}`}>{fmtExpiryShort(item.expiresOn)}</span>
-        : <span className="tile-sub">{sub}</span>}
-    </button>
+    <div className="band-img" style={{ width: size, height: size }}>
+      {item.imageUrl
+        ? <img src={item.imageUrl} alt="" loading="lazy" />
+        : mark === '?'
+        ? <Package size={Math.round(size * 0.42)} strokeWidth={1.4} />
+        : <span className="band-mono" style={{ fontSize: Math.round(size * 0.34) }}>{mark}</span>}
+    </div>
+  );
+}
+
+// Raden säger var varan ligger och hur många det är — det som inte får plats i
+// namnet men avgör om man går till frysen eller kylen.
+function Meta({ item }) {
+  return (
+    <span className="band-meta">
+      <span className="band-glyph" title={locationLabel(item.location)}>
+        {locationGlyph(item.location)}
+      </span>
+      {item.count > 1 && <span className="band-count">{item.count} st</span>}
+    </span>
   );
 }
 
 /*
-  Ljuset i skåpet är signalen: kallt vitt när allt är i sin ordning, varmt när
-  kylan sviker. Räknas på det man faktiskt tittar in i — den öppna luckan eller
-  sökträffarna — och sätts som --larm på .fridge, där CSS:en tonar in det varma
-  lagret. Tre steg räcker; en glidande skala hade låtsats om en precision som
-  "något går ut i dag" inte har.
+  Bandet: en vara som kräver ett beslut. Passerat får två knappar för att det
+  bara finns två sanningar om utgången mat. Brådskande får "Frys in", för de tre
+  utrymmena är egentligen tre hastigheter på förfall — att frysa in är att pausa
+  klockan, och det är en räddning och inte en flytt.
 */
-function larmOf(list) {
-  let level = 0;
-  for (const item of list) {
-    const state = expiryState(item.expiresOn);
-    if (state === 'expired' || state === 'today') return 1;
-    if (state === 'soon') level = 0.5;
-  }
-  return level;
+function Band({ item, onSelect, onRemove, onFreeze }) {
+  const state = expiryState(item.expiresOn);
+  const passerat = state === 'expired';
+
+  return (
+    <article id={`vara-${item.id}`} className={`band band-${state}`}>
+      <button type="button" className="band-head" onClick={() => onSelect(item)}>
+        <Thumb item={item} size={passerat ? 56 : 48} />
+        <span className="band-text">
+          <span className="band-name">{item.name}</span>
+          <span className="band-when">{fmtBandExpiry(item.expiresOn)}</span>
+        </span>
+        <Meta item={item} />
+      </button>
+
+      <div className="band-actions">
+        {passerat ? (
+          <>
+            <button className="act act-warm" onClick={() => onRemove(item, 'waste')}>
+              <Trash2 size={15} /> Slängd
+            </button>
+            <button className="act" onClick={() => onRemove(item, 'consumed')}>
+              <Check size={15} /> Åt ändå
+            </button>
+          </>
+        ) : (
+          <>
+            {item.location !== 'freezer' && (
+              <button className="act" onClick={() => onFreeze(item)}>
+                <Snowflake size={15} /> Frys in
+              </button>
+            )}
+            <button className="act" onClick={() => onRemove(item, 'consumed')}>
+              <Check size={15} /> Slut
+            </button>
+            <button className="act act-warm" onClick={() => onRemove(item, 'waste')}>
+              <Trash2 size={15} /> Slängd
+            </button>
+          </>
+        )}
+      </div>
+    </article>
+  );
 }
 
-function Shelf({ id, label, items, onSelect }) {
-  if (!items.length) return null;
+// Veckans varor kräver inget beslut i dag — de ska gå att överblicka, inte
+// hanteras. Därför en rad utan knappar.
+function Row({ item, onSelect, action }) {
   return (
-    <div className={`shelf shelf-${id}`}>
-      <div className="shelf-head">
-        <h3>{label}</h3>
-        <span className="shelf-count">{items.length}</span>
-      </div>
-      <div className="shelf-items">
-        {items.map(item => <Tile key={item.id} item={item} onClick={() => onSelect(item)} />)}
-      </div>
-      <div className="shelf-edge" />
+    <div id={`vara-${item.id}`} className="row">
+      <button type="button" className="row-head" onClick={() => onSelect(item)}>
+        <Thumb item={item} size={32} />
+        <span className="row-name">{item.name}</span>
+        <Meta item={item} />
+      </button>
+      {action || <span className="row-when">{fmtBandExpiry(item.expiresOn)}</span>}
     </div>
   );
 }
 
 /*
-  Vilken lucka som är öppen bor i App och inte här. Det är inte bara en vy-
-  detalj: lägger man in en vara medan frysen står öppen ska den hamna i frysen,
-  och både inläggningsformuläret och skannern behöver därför veta vad man
-  tittar in i.
+  Resten: det som håller sig. Här är frågan inte "vad ska jag äta" utan "har jag
+  senap hemma", och då är utrymmet rätt ordningsprincip igen.
 */
-export default function FridgeView({ items, loading, error, door, onDoorChange, onRetry, onSelect, onAddClick }) {
+function Stash({ items, onSelect }) {
+  const perPlats = useMemo(() => {
+    const map = new Map();
+    for (const item of items) {
+      if (!map.has(item.location)) map.set(item.location, []);
+      map.get(item.location).push(item);
+    }
+    return [...map].sort((a, b) => b[1].length - a[1].length);
+  }, [items]);
+
+  return (
+    <div className="stash">
+      {perPlats.map(([location, list]) => (
+        <div key={location} className="stash-group">
+          <h3 className="stash-head">{locationLabel(location)} <span>{list.length}</span></h3>
+          <div className="stash-chips">
+            {list.map(item => (
+              <button key={item.id} id={`vara-${item.id}`} className="chip-item"
+                onClick={() => onSelect(item)}>
+                {item.name}
+                {item.count > 1 && <span className="chip-count">{item.count}</span>}
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+const Eyebrow = ({ children, n }) => (
+  <h3 className="eyebrow">{children}{n !== undefined && <span className="eyebrow-n">{n}</span>}</h3>
+);
+
+export default function FridgeView({ items, loading, error, onRetry, onSelect, onAddClick, onRemove, onFreeze }) {
   const [query, setQuery] = useState('');
   const [searching, setSearching] = useState(false);
 
-  // Räknas per lucka, så man ser att frysen behöver uppmärksamhet utan att öppna den.
-  const doorStats = useMemo(() => {
-    const stats = {};
-    for (const d of DOORS) {
-      const mine = items.filter(i => i.location === d.id);
-      stats[d.id] = {
-        count: mine.reduce((n, i) => n + i.count, 0),
-        urgent: mine.some(i => isUrgent(expiryState(i.expiresOn))),
-      };
-    }
-    return stats;
-  }, [items]);
-
   const q = query.trim().toLowerCase();
 
-  // Sökning går tvärs genom alla utrymmen — letar man efter senapen vill man
-  // inte först behöva gissa vilken lucka den står i.
+  // Sökningen går tvärs allt — letar man efter senapen vill man inte först
+  // behöva gissa vilket utrymme den står i.
   const hits = useMemo(() => {
     if (!q) return null;
     return items
@@ -120,24 +166,36 @@ export default function FridgeView({ items, loading, error, door, onDoorChange, 
       .sort(byExpiry);
   }, [items, q]);
 
-  const shelves = useMemo(() => {
-    const inDoor = items.filter(i => i.location === door).sort(byExpiry);
-    return SHELVES.map(s => ({ ...s, items: inDoor.filter(i => shelfOf(i) === s.id) }));
-  }, [items, door]);
+  const { attGora, veckan, utanDatum, resten } = useMemo(() => {
+    const s = queueSections(items);
+    return {
+      attGora: s.attGora.sort(byExpiry),
+      veckan: s.veckan.sort(byExpiry),
+      utanDatum: s.utanDatum,
+      resten: s.resten.sort(byExpiry),
+    };
+  }, [items]);
 
-  const total = items.reduce((n, i) => n + i.count, 0);
-  const doorEmpty = shelves.every(s => !s.items.length);
+  const scrollTo = (item) => {
+    document.getElementById(`vara-${item.id}`)
+      ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+
+  if (loading && !items.length) return <p className="tomt">Öppnar kylskåpet…</p>;
+  if (error && !items.length) {
+    return (
+      <div className="tomt">
+        <p style={{ marginBottom: 14 }}>Kunde inte hämta lagret.<br />{error}</p>
+        <button className="btn-ghost btn-pill" onClick={onRetry}>Försök igen</button>
+      </div>
+    );
+  }
 
   return (
     <>
-      <div className="flex-between" style={{ marginBottom: 'var(--space-4)' }}>
-        <div className="truncate">
-          <h1>Kylskåpet</h1>
-          <p style={{ fontSize: '0.85rem' }}>
-            {total ? `${total} varor hemma` : 'Inget inskannat än'}
-          </p>
-        </div>
-        <div className="flex-row" style={{ gap: 6 }}>
+      <div className="topbar">
+        <span className="topbar-date">{fmtToday()}</span>
+        <div className="topbar-actions">
           <button className="btn-icon" aria-label={searching ? 'Stäng sök' : 'Sök vara'}
             onClick={() => { setSearching(s => !s); setQuery(''); }}>
             {searching ? <X size={20} /> : <Search size={20} />}
@@ -154,65 +212,65 @@ export default function FridgeView({ items, loading, error, door, onDoorChange, 
       )}
 
       {hits ? (
-        <div className="fridge" style={{ '--larm': larmOf(hits) }}>
+        <>
+          <Eyebrow n={hits.length}>{hits.length === 1 ? 'träff' : 'träffar'}</Eyebrow>
           {hits.length
-            ? (
-              <div className="shelf">
-                <div className="shelf-head">
-                  <h3>{hits.length === 1 ? '1 träff' : `${hits.length} träffar`}</h3>
-                </div>
-                <div className="shelf-items">
-                  {hits.map(item => (
-                    <Tile key={item.id} item={item} showLocation onClick={() => onSelect(item)} />
-                  ))}
-                </div>
-                <div className="shelf-edge" />
-              </div>
-            )
-            : <p className="fridge-empty">Ingen vara heter så.</p>}
+            ? hits.map(item => <Row key={item.id} item={item} onSelect={onSelect} />)
+            : <p className="tomt">Ingen vara heter så.</p>}
+        </>
+      ) : !items.length ? (
+        <div className="tomt">
+          <p>Kylskåpet är tomt.<br />Tryck på plusknappen eller skanna en streckkod.</p>
         </div>
       ) : (
         <>
-          <div className="doors">
-            {DOORS.map(d => (
-              <button key={d.id} className={`door ${door === d.id ? 'open' : ''}`}
-                onClick={() => onDoorChange(d.id)} aria-pressed={door === d.id}>
-                <d.icon size={17} strokeWidth={1.8} />
-                <span>{d.label}</span>
-                <span className="door-count">
-                  {doorStats[d.id].count}
-                  {doorStats[d.id].urgent && <i className="door-dot" aria-label="något brådskar" />}
-                </span>
-              </button>
-            ))}
-          </div>
+          <Rail items={items} onPick={scrollTo} />
 
-          {/* key på luckan: innehållet monteras om vid byte, så ljuset tänds igen */}
-          <div className="fridge" key={door} style={{ '--larm': larmOf(shelves.flatMap(s => s.items)) }}>
-            {/* Tomt och "inte hämtat än" ser likadant ut i datan men betyder helt
-                olika saker — utan det här står det "Kylen är tom" varje gång
-                appen startar, en halvsekund innan varorna dyker upp. */}
-            {loading && !items.length
-              ? <p className="fridge-empty">Öppnar kylskåpet…</p>
-              : error && !items.length
-              ? (
-                <div className="fridge-empty">
-                  <p style={{ marginBottom: 14 }}>Kunde inte hämta lagret.<br />{error}</p>
-                  <button className="btn-ghost btn-pill" onClick={onRetry}>Försök igen</button>
-                </div>
-              )
-              : doorEmpty
-              ? (
-                <p className="fridge-empty">
-                  {EMPTY_TEXT[door]}<br />
-                  {items.length ? 'Skanna in något, eller kolla en annan lucka.' : 'Tryck på plusknappen eller skanna en streckkod.'}
-                </p>
-              )
-              : shelves.map(s => (
-                <Shelf key={s.id} id={s.id} label={s.label} items={s.items} onSelect={onSelect} />
+          {attGora.length > 0 && (
+            <section>
+              <Eyebrow n={attGora.length}>Att göra</Eyebrow>
+              {attGora.map(item => (
+                <Band key={item.id} item={item} onSelect={onSelect}
+                  onRemove={onRemove} onFreeze={onFreeze} />
               ))}
-          </div>
+            </section>
+          )}
 
+          {veckan.length > 0 && (
+            <section>
+              <Eyebrow n={veckan.length}>Den här veckan</Eyebrow>
+              {veckan.map(item => <Row key={item.id} item={item} onSelect={onSelect} />)}
+            </section>
+          )}
+
+          {/* Utan datum var tidigare osynligt: rutan föll tillbaka på mängden och
+              såg likadan ut som en vara med full koll. Nu är frånvaron ett hål
+              man lagar med ett tryck — och sorteringen, hyllindelningen och
+              receptprioriteringen hänger alla på att det blir lagat. */}
+          {utanDatum.length > 0 && (
+            <section>
+              <Eyebrow n={utanDatum.length}>Utan datum</Eyebrow>
+              {utanDatum.map(item => (
+                <Row key={item.id} item={item} onSelect={onSelect}
+                  action={
+                    <button className="act act-date" onClick={() => onSelect(item)}>
+                      <CalendarPlus size={14} /> Sätt datum
+                    </button>
+                  } />
+              ))}
+            </section>
+          )}
+
+          {resten.length > 0 && (
+            <section>
+              <Eyebrow n={resten.length}>Håller sig</Eyebrow>
+              <Stash items={resten} onSelect={onSelect} />
+            </section>
+          )}
+
+          {!attGora.length && !veckan.length && (
+            <p className="lugnt">Inget brådskar den närmaste veckan.</p>
+          )}
         </>
       )}
     </>

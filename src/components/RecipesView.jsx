@@ -48,12 +48,14 @@ export default function RecipesView({ items, aiOk, busy, log, onRun, onGoToSetti
 
   return (
     <>
-      <h1>Vad kan jag laga?</h1>
-      <p style={{ marginBottom: 'var(--space-5)' }}>
-        {urgent.length
-          ? `Förslagen utgår från lagret och prioriterar ${urgent.map(i => i.name).slice(0, 3).join(', ')}.`
-          : 'Förslagen utgår från vad som finns hemma just nu.'}
-      </p>
+      <header className="sidhuvud">
+        <h1>Vad kan jag laga?</h1>
+        <p>
+          {urgent.length
+            ? `Utgår från lagret och prioriterar ${urgent.map(i => i.name).slice(0, 3).join(', ')}.`
+            : 'Utgår från vad som finns hemma just nu.'}
+        </p>
+      </header>
 
       {!aiOk && (
         <div className="panel">

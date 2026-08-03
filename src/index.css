@@ -25,6 +25,9 @@
   /* ---- Paletten: kylskåpets egna material ---- */
   --stal:   #E3E9EA; /* plåten utanpå — appens mark */
   --insida: #F5F9F9; /* den lysta innerväggen — ytor */
+  --natt:   #0C1416; /* insidan av ett stängt skåp — bakgrund för streckkoden,
+                        och sidans enda mörka yta. Utan den är allt en och samma
+                        ljusa ton och sidan saknar fokuspunkt. */
   --skugga: #101719; /* kall nästan-svart, blågrön ton */
   --is:     #0F6C7E; /* det enda mättat kalla — allt man kan trycka på */
   --ljum:   #C9741C; /* ljummet: går ut inom dagar */
@@ -180,14 +183,32 @@ a { color: var(--accent-ink); }
   outline-offset: 2px;
 }
 
+/*
+  Panelen är inte längre ett svävande kort. En vit slab kant till kant med
+  radie 0 hör ihop med banden i kylskåpsvyn — samma yta, samma logik — medan
+  ett rundat kort med skugga hade läst som ett objekt på en sida. Skuggan är
+  också borta: sidan har en mörk fokuspunkt nu och behöver inte falsk höjd för
+  att skapa hierarki.
+*/
 .panel {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius);
+  margin-left: calc(var(--space-5) * -1);
+  margin-right: calc(var(--space-5) * -1);
+  margin-bottom: 3px;
   padding: var(--space-5);
-  margin-bottom: var(--space-3);
-  box-shadow: var(--shadow-card);
+  background: var(--bg-elevated);
 }
+
+/* Sidrubriken i Recept och Inställningar. Kompakt och vänsterställd — den ska
+   namnge sidan, inte fylla den. */
+.sidhuvud {
+  margin-bottom: var(--space-5);
+}
+.sidhuvud h1 {
+  font-size: 1.6rem;
+  letter-spacing: -0.03em;
+  margin-bottom: 2px;
+}
+.sidhuvud p { font-size: 0.88rem; }
 
 /* Inputs — 16px förhindrar att iOS zoomar in vid fokus */
 input, select, textarea {
@@ -268,8 +289,6 @@ button:disabled:active { transform: none; }
 }
 .btn-ghost:active { background: var(--bg-surface-hover); }
 
-.btn-danger { background: var(--danger); color: #fff; }
-
 .btn-icon {
   background: transparent;
   border: none;
@@ -282,7 +301,6 @@ button:disabled:active { transform: none; }
 }
 .btn-icon:active { color: var(--text-primary); background: var(--bg-sunken); }
 
-.btn-inline { width: auto; }
 .btn-pill {
   width: auto;
   padding: 9px 14px;
@@ -448,238 +466,427 @@ button:disabled:active { transform: none; }
 @keyframes slideUp { to { transform: translateY(0); } }
 
 /* ════════════════════════════════════════════════════════════════════════
-   KYLSKÅPET
+   KÖN — inte skåpet
 
-   Signaturen: en enda ljuskälla vars färgtemperatur är datan.
+   Den gamla vyn ritade en möbel: tre luckor som segmentkontroll, en låda med
+   hyllor och ett rutnät av lika stora rutor. ~290 px krom som aldrig ändrades,
+   och den kunde inte svara på appens viktigaste fråga — vad brådskar? — utan
+   att man öppnade en lucka i taget.
 
-   Ljuset sitter i taket på skåpet, precis som i ett riktigt kylskåp, och
-   faller nedåt. Går något ut snart blir ljuset varmt däruppe — kylan sviker
-   just där. Är allt i sin ordning är ljuset genomgående kallt och vitt.
-   Man ser alltså hela kylskåpets hälsa på ljusets färg innan man läst ett
-   enda ord, och därför ligger "Ät snart" högst upp: ljuset landar på det som
-   brådskar.
-
-   FridgeView sätter --larm (0, 0.5 eller 1) på .fridge utifrån innehållet.
-
-   Ljusgradienten är också appens *enda* gradient. Allt annat är matt. Det är
-   regeln som håller det här från att glida iväg till ännu en glasig
-   instrumentpanel.
+   Nu är den lodräta axeln tid. Skärmytan fördelas efter hur mycket varan
+   förtjänar: ett passerat band får 56 px bild och två beslut, en vara som
+   håller sig får en bricka. Det är hierarkin, och den är regeln som gör att
+   det här inte går att förväxla med ett rutnät.
    ════════════════════════════════════════════════════════════════════════ */
 
-/* Luckorna: tre utrymmen, ett öppet i taget. Den öppna är tänd och tar färg
-   av skåpets tak; de stängda ligger kvar i det nedsänkta mörkret. */
-.doors {
+/* Banden och streckkoden bryter ur .content-area:s sidpadding och går kant till
+   kant. En slab som når ut i kanten läser som en yta, inte som ett kort på en
+   yta — och det är hela skillnaden mot rutnätet den ersätter. */
+.topbar {
   display: flex;
-  gap: 6px;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
   margin-bottom: var(--space-3);
 }
-.door {
-  flex: 1;
-  flex-direction: column;
-  gap: 3px;
-  padding: 10px 4px 8px;
-  border-radius: 12px 12px 4px 4px;
-  background: var(--bg-sunken);
-  color: var(--text-secondary);
-  font-family: var(--font-body);
+/* Dagens datum, inte appens namn. Det är referenspunkten för varenda
+   "om 3 dagar" på sidan — och till skillnad från en rubrik ändras det. */
+.topbar-date {
+  font-family: var(--font-mono);
   font-size: 0.72rem;
   font-weight: 500;
-  letter-spacing: 0;
-  width: auto;
-  transition: background 0.2s, color 0.2s;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
 }
-.door.open {
-  background: #F2F8F9;
-  color: var(--text-primary);
-  box-shadow: 0 -1px 0 rgba(16, 23, 25, 0.04), 0 -6px 14px rgba(16, 23, 25, 0.06);
-  font-weight: 600;
-}
-.door.open svg { color: var(--accent-ink); }
-.door-count {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-family: var(--font-mono);
-  font-size: 0.65rem;
-  color: var(--text-muted);
-}
-/* Pricken är varm av samma skäl som allt annat varmt i appen. */
-.door-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--varm);
-}
+.topbar-actions { display: flex; align-items: center; gap: 6px; }
 
-.fridge {
-  --larm: 0;
-  position: relative;
-  isolation: isolate;
-  background:
-    radial-gradient(125% 60% at 50% -10%, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0) 62%),
-    linear-gradient(180deg, #F2F8F9 0%, #DCE6E8 100%);
-  border: 1px solid rgba(16, 23, 25, 0.09);
-  border-radius: 6px 6px var(--radius) var(--radius);
-  padding: var(--space-4) var(--space-3) var(--space-2);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.9),
-    inset 0 -10px 24px rgba(16, 23, 25, 0.04),
-    var(--shadow-card);
-  animation: fridgeOpen 0.34s cubic-bezier(0.32, 0.72, 0, 1);
+/* ---- Streckkoden ----
+   Kylskåpets framtid ritad som den kod appen är byggd för att läsa. Mörk yta
+   med flit: det är instrumentet, inte sidan, och det är också insidan av ett
+   stängt skåp. Sidans enda mörka element — därför också dess fokuspunkt. */
+.rail {
+  margin-left: calc(var(--space-5) * -1);
+  margin-right: calc(var(--space-5) * -1);
+  margin-bottom: var(--space-5);
+  padding: 14px var(--space-4) 8px;
+  background: var(--natt);
 }
-
-/* Det varma lagret. Egen pseudo i stället för en till bakgrund på .fridge,
-   för opacity går att animera — en bakgrundsgradient gör inte det. z-index 0
-   lägger den bakom hyllorna, så ljuset lyser i skåpet omkring varorna i
-   stället för att lägga sig som ett filter över produktbilderna. */
-.fridge::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  border-radius: inherit;
-  background: radial-gradient(135% 65% at 50% -12%, rgba(255, 168, 76, 0.55), rgba(255, 168, 76, 0) 64%);
-  opacity: var(--larm);
-  transition: opacity 0.7s ease;
-  pointer-events: none;
-}
-
-/* Luckan öppnas: innehållet svänger in från vänster gångjärn och ljuset tänds. */
-@keyframes fridgeOpen {
-  from { opacity: 0; transform: perspective(900px) rotateY(-7deg); transform-origin: left center; filter: brightness(0.93); }
-  to { opacity: 1; transform: none; filter: brightness(1); }
-}
-
-.fridge-empty {
-  position: relative;
-  z-index: 1;
-  text-align: center;
-  padding: var(--space-8) var(--space-4);
-  color: var(--text-muted);
-  font-size: 0.88rem;
-  line-height: 1.7;
-}
-
-.shelf { position: relative; z-index: 1; margin-bottom: var(--space-2); }
-.shelf-head {
+.rail-plot {
   display: flex;
-  align-items: baseline;
-  gap: 8px;
-  margin-bottom: 10px;
+  align-items: flex-end;
+  gap: 10px;
+  height: 44px;
 }
-/* Hyllan som brådskar får sin etikett i samma värme som ljuset ovanför den. */
-.shelf-now h3 { color: var(--ljum-ink); }
-.shelf-count {
+.rail-days {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  gap: 1px;
+  height: 100%;
+  min-width: 0;
+}
+/* Senare och utan datum är egna sorters svar, inte dagar — därför avskilda
+   från skalan av en linje i stället för hopklumpade i högerkanten. */
+.rail-aside {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 100%;
+  padding-left: 10px;
+  border-left: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.rail-col {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  width: auto;
+  background: none;
+  border-radius: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  transition: none;
+}
+.rail-col-vid { flex: 0 0 12px; }
+.rail-col:active { transform: none; }
+.rail-col:disabled { opacity: 1; }
+/* Tomma dagar får en punkt i stället för ingenting: skalan ska synas även där
+   kylskåpet är tyst, och en punkt läser som en tom position i koden. */
+.rail-tom::after {
+  content: '';
+  display: block;
+  width: 5px;
+  height: 2px;
+  border-radius: 1px;
+  background: rgba(255, 255, 255, 0.18);
+}
+/*
+  Fast strecktjocklek, inte kolumnbredd. En stapel som fyller sin kolumn blir
+  ett stapeldiagram; ett smalt streck med luft omkring blir en streckkod — och
+  det är hela poängen med att just den här appen ritar sin data så här.
+*/
+.rail-bar {
+  display: block;
+  width: 5px;
+  min-height: 3px;
+  border-radius: 1px;
+  background: rgba(255, 255, 255, 0.42);
+  transition: height 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+}
+/* Samma regel som i resten av appen: värme betyder förfall. */
+.rail-expired .rail-bar,
+.rail-today .rail-bar { background: #E4573B; }
+.rail-soon .rail-bar { background: #E8A33D; }
+.rail-week .rail-bar { background: #8FC5D0; }
+/* Längre fram är varken bra eller dåligt — det ska synas men inte höras. */
+.rail-senare .rail-bar { background: rgba(255, 255, 255, 0.3); }
+/* Utan datum är en uppgift, inte ett tillstånd. Därför accentfärgen. */
+.rail-utan .rail-bar { background: #3FA8BC; }
+
+.rail-axis {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+  font-family: var(--font-mono);
+  font-size: 0.54rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45);
+}
+.rail-axis-days {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  justify-content: space-between;
+}
+.rail-axis-aside {
+  display: flex;
+  gap: 4px;
+  padding-left: 10px;
+}
+.rail-axis-aside span { flex: 0 0 12px; text-align: center; }
+.rail-now { color: rgba(255, 255, 255, 0.9); }
+.rail-now::before {
+  content: '';
+  display: inline-block;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #fff;
+  margin-right: 4px;
+  vertical-align: 1px;
+}
+
+/* ---- Sektionsetikett ----
+   Mono-versaler med en linje som tar upp resten av raden. Etiketten är
+   maskinens namn på en grupp, och antalet är dess avläsning. */
+.eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: var(--space-6) 0 var(--space-3);
+}
+.eyebrow::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-color);
+}
+.eyebrow-n {
   font-family: var(--font-mono);
   font-size: 0.68rem;
-  color: var(--text-muted);
+  color: var(--text-secondary);
+  letter-spacing: 0;
 }
-/* Rutorna är lika höga med flit: varierande höjd får hyllan att se rörig ut,
-   och det var precis problemet med den gamla listan. */
-.shelf-items {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  align-items: stretch;
-}
-/* Hyllplanet: en glaskant med ljus ovansida och skugga under, så varorna står
-   på något i stället för att sväva. */
-.shelf-edge {
-  height: 8px;
-  margin: 12px -6px var(--space-5);
-  border-radius: 4px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.5) 40%, rgba(16, 23, 25, 0.14) 100%);
-  box-shadow: 0 4px 10px rgba(16, 23, 25, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.95);
-}
-.shelf:last-child .shelf-edge { margin-bottom: var(--space-3); }
+section:first-of-type .eyebrow { margin-top: 0; }
 
-/* Varan på hyllan — bild först, namn under. Tre i bredd. */
-.tile {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 5px;
-  width: auto;
-  padding: 8px 6px 9px;
+/* ---- Bandet: en vara som kräver ett beslut ----
+   Radie 0 och kant till kant. Ett kort med rundade hörn och skugga hade gjort
+   det till ett objekt bland andra; en slab är en yta man agerar på. */
+.band {
+  margin-left: calc(var(--space-5) * -1);
+  margin-right: calc(var(--space-5) * -1);
+  margin-bottom: 3px;
+  padding: 11px var(--space-5) 12px;
   background: var(--bg-elevated);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-xs);
-  box-shadow: 0 1px 2px rgba(16, 23, 25, 0.06);
+  border-left: 3px solid transparent;
+}
+.band-expired { border-left-color: var(--varm); }
+.band-today { border-left-color: var(--varm); }
+.band-soon { border-left-color: var(--ljum); }
+
+.band-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: 0;
+  background: none;
+  border-radius: 0;
+  text-align: left;
   font-family: var(--font-body);
   font-size: 1rem;
   font-weight: 400;
   letter-spacing: 0;
   color: var(--text-primary);
-  transition: transform 0.15s, box-shadow 0.15s;
 }
-.tile:active { transform: translateY(1px) scale(0.98); }
-/* Klassen är `tile-${state}` ur expiryState, alltså tile-soon — inte tile-now.
-   Regeln hette fel och matchade ingenting, så allt som gick ut inom tre dagar
-   stod utan den ljumma kanten. */
-.tile-soon { border-color: rgba(201, 116, 28, 0.45); }
-.tile-expired, .tile-today { border-color: rgba(179, 58, 34, 0.45); }
+.band-head:active { transform: none; opacity: 0.65; }
 
-.tile-img {
-  position: relative;
-  width: 100%;
-  height: 42px;
+.band-img {
+  flex-shrink: 0;
   display: grid;
   place-items: center;
+  border-radius: var(--radius-xs);
+  background: var(--bg-alt);
+  color: var(--text-muted);
+  overflow: hidden;
+}
+.band-img img { max-width: 100%; max-height: 100%; object-fit: contain; }
+/* Monogrammet är varans ansikte när bilden saknas. Displayfonten med tight
+   spärr gör det till ett märke, inte till text som råkat hamna i en ruta. */
+.band-mono {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  color: var(--text-secondary);
+  opacity: 0.6;
+}
+
+.band-text { flex: 1; min-width: 0; }
+.band-name {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 1.02rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Nedräkningen är en avläsning och sätts i mono, som alla tal i appen. */
+.band-when {
+  display: block;
+  margin-top: 3px;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+.band-expired .band-when { color: var(--varm); }
+.band-today .band-when { color: var(--varm); }
+.band-soon .band-when { color: var(--ljum-ink); }
+
+.band-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+/* Plats slutade vara en flik och blev en bokstav. Tre utrymmen ryms i K/F/S. */
+.band-glyph {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  background: var(--bg-sunken);
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+.band-count {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--text-secondary);
+}
+
+.band-actions {
+  display: flex;
+  gap: 5px;
+  margin-top: 10px;
+}
+/* Besluten är jämnstora och delar bredden. Ingen av dem är en primär CTA —
+   att slänga och att äta upp är lika giltiga svar på samma fråga. */
+.act {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 4px;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  border-radius: var(--radius-xs);
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  gap: 5px;
+  white-space: nowrap;
+}
+.act:active { background: var(--bg-sunken); }
+.act-warm { color: var(--varm); }
+/* width: auto är inte kosmetik. Bas-knappen sätter width: 100%, och med
+   flex-basis auto blir den bredden utgångsläget — knappen åt hela raden och
+   tryckte ut varunamnet ur skärmen. */
+.act-date {
+  flex: 0 0 auto;
+  width: auto;
+  padding: 8px 12px;
+  font-size: 0.78rem;
+  color: var(--accent-ink);
+  background: var(--accent-soft);
+}
+
+/* ---- Raden: veckans varor ----
+   Inget beslut krävs i dag, så inga knappar. De ska gå att överblicka. */
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-left: calc(var(--space-5) * -1);
+  margin-right: calc(var(--space-5) * -1);
+  margin-bottom: 2px;
+  padding: 9px var(--space-5);
+  background: var(--bg-elevated);
+}
+.row-head {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0;
+  background: none;
+  border-radius: 0;
+  text-align: left;
+  font-family: var(--font-body);
+  font-size: 1rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--text-primary);
+}
+.row-head:active { transform: none; opacity: 0.65; }
+.row-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.92rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.row-when {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.06em;
   color: var(--text-muted);
 }
-.tile-img img { max-width: 100%; max-height: 42px; object-fit: contain; }
-.tile-count {
-  position: absolute;
-  top: -4px;
-  right: -2px;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
-  border-radius: 100px;
-  background: var(--text-primary);
-  color: var(--insida);
+
+/* ---- Håller sig ----
+   Här är frågan inte "vad ska jag äta" utan "har jag senap hemma", och då är
+   utrymmet rätt ordningsprincip igen. Brickor: tätast av allt, för det här är
+   inget man läser rad för rad. */
+.stash-group { margin-bottom: var(--space-4); }
+.stash-head {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  margin-bottom: 9px;
   font-family: var(--font-mono);
   font-size: 0.62rem;
   font-weight: 500;
-  display: grid;
-  place-items: center;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
 }
-.tile-name {
-  font-family: var(--font-display);
-  font-size: 0.78rem;
-  font-weight: 500;
-  letter-spacing: -0.01em;
-  line-height: 1.25;
-  text-align: center;
-  /* Högst två rader. Ingen låst höjd: raden i rutnätet sträcker ändå alla
-     rutor lika höga, så en hylla med bara enradiga namn blir kompakt i
-     stället för att bära runt på en tom rad. */
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  word-break: break-word;
-}
-/* margin-top: auto trycker etiketten till rutans underkant, så alla etiketter
-   på en hylla hamnar på samma linje oavsett hur långa namnen är. */
-.tile-sub, .tile-expiry {
-  font-family: var(--font-mono);
-  font-size: 0.6rem;
-  line-height: 1.4;
-  height: 1.4rem;
-  margin-top: auto;
-  display: flex;
-  align-items: center;
-  max-width: 100%;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.tile-sub { color: var(--text-muted); }
-.tile-expiry {
-  font-weight: 500;
-  padding: 0 8px;
+.stash-head span { color: var(--text-secondary); letter-spacing: 0; }
+.stash-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip-item {
+  width: auto;
+  padding: 8px 12px;
   border-radius: 100px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  gap: 6px;
+}
+.chip-item:active { background: var(--bg-surface-hover); }
+.chip-count {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.tomt {
+  text-align: center;
+  padding: var(--space-8) var(--space-4);
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  line-height: 1.7;
+}
+.tomt p { color: inherit; }
+/* Att inget brådskar är också ett svar, och det ska synas som ett lugnt
+   besked och inte som en tom sida. */
+.lugnt {
+  margin: var(--space-6) 0 var(--space-4);
+  padding: var(--space-5);
+  text-align: center;
+  background: var(--bg-elevated);
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
 }
 
 /* ---- Formulärfält ---- */
@@ -855,23 +1062,6 @@ button:disabled:active { transform: none; }
   flex-shrink: 0;
 }
 
-/* Nedräkningen är en avläsning och sätts i mono. Kallt = ingen brådska,
-   ljummet = inom dagar, varmt = i dag eller passerat. */
-.expiry-pill {
-  font-family: var(--font-mono);
-  font-size: 0.68rem;
-  font-weight: 500;
-  padding: 4px 10px;
-  border-radius: 100px;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-.expiry-expired { background: var(--danger-soft); color: var(--danger-ink); }
-.expiry-today   { background: var(--danger-soft); color: var(--danger-ink); }
-.expiry-soon    { background: var(--warn-soft); color: var(--warn-ink); }
-.expiry-week    { background: var(--bg-sunken); color: var(--text-secondary); }
-.expiry-ok      { background: var(--bg-sunken); color: var(--text-muted); }
-
 .banner {
   display: flex;
   align-items: center;
@@ -904,13 +1094,6 @@ button:disabled:active { transform: none; }
   border: 1px solid #BA6650;
 }
 .banner-btn:active { transform: none; background: #F0D6D0; }
-
-.empty-state {
-  text-align: center;
-  padding: var(--space-8) var(--space-4);
-  color: var(--text-muted);
-}
-.empty-state h2 { color: var(--text-primary); margin-bottom: 8px; }
 
 /* ---- Skanner ----
    Kameravyn förblir mörk oavsett tema: det är en sökare, inte en sida. */
@@ -983,6 +1166,50 @@ button:disabled:active { transform: none; }
   gap: 12px;
   box-shadow: var(--shadow-lift);
 }
+/* Antal och bäst före sätts på plats i sökaren, så en matkasse går att tömma
+   utan att öppna varans kort en gång per förpackning. */
+.scan-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-3);
+}
+.scan-label {
+  display: block;
+  margin-bottom: 7px;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.scan-row .scan-label { margin-bottom: 0; }
+/* Fotoknappen är ett snabbval bland de andra, inte en egen avdelning — det är
+   samma fråga besvarad med kameran i stället för en gissning. */
+.chip-foto {
+  width: auto;
+  padding: 9px 13px;
+  border-radius: 100px;
+  background: var(--accent-soft);
+  border: 1px solid transparent;
+  color: var(--accent-ink);
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  gap: 6px;
+}
+.scan-last {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: var(--space-3);
+  font-size: 0.82rem;
+}
+.scan-last strong { color: var(--text-primary); }
 /* Platsväljaren ligger ovanpå kameran och behöver egen kontrast */
 .scanner .segmented { background: rgba(0, 0, 0, 0.45); backdrop-filter: blur(6px); }
 .scanner .segmented button { color: rgba(255, 255, 255, 0.8); }

@@ -61,11 +61,16 @@ export default function SettingsView({ serverAi, persistent, onKeyChanged, onToa
 
   return (
     <>
-      <h1>Inställningar</h1>
+      <header className="sidhuvud">
+        <h1>Inställningar</h1>
+        <p>Hushållsnyckel, AI och svinn.</p>
+      </header>
 
       {/* Deployad utan Turso är det värsta läget: allt fungerar, tills servern
           startar om och lagret är tomt. Då ska man ha blivit varnad först. */}
-      {!persistent && !isLocalhost && (
+      {/* persistent === false, inte !persistent: null betyder "vet inte än", och
+          då ska ingen varning visas. */}
+      {persistent === false && !isLocalhost && (
         <div className="banner banner-warn" style={{ marginTop: 'var(--space-4)' }}>
           <AlertTriangle size={17} />
           <span>
@@ -75,14 +80,16 @@ export default function SettingsView({ serverAi, persistent, onKeyChanged, onToa
         </div>
       )}
 
-      <h3 style={{ margin: 'var(--space-5) 0 8px' }}>Hushåll</h3>
+      <h3 className="eyebrow">Hushåll</h3>
       <div className="panel">
         <p style={{ marginBottom: 12 }}>
           Alla som har den här nyckeln ser samma kylskåp. Dela den med hushållet — och bara med dem,
           nyckeln är hela åtkomsten.
         </p>
+        {/* --bg-base och inte --bg-elevated: panelen är vit nu, så nyckeln hade
+            försvunnit in i sin egen bakgrund. */}
         <div className="mono" style={{
-          background: 'var(--bg-elevated)', padding: '10px 12px',
+          background: 'var(--bg-base)', padding: '10px 12px',
           borderRadius: 'var(--radius-xs)', marginBottom: 12, wordBreak: 'break-all',
         }}>{key}</div>
 
@@ -101,7 +108,7 @@ export default function SettingsView({ serverAi, persistent, onKeyChanged, onToa
         <button className="btn-ghost" onClick={useKey} disabled={!keyInput.trim()}>Byt nyckel</button>
       </div>
 
-      <h3 style={{ margin: 'var(--space-5) 0 8px' }}>AI</h3>
+      <h3 className="eyebrow">AI</h3>
       <div className="panel">
         <p style={{ marginBottom: 12 }}>
           {serverAi
@@ -127,7 +134,7 @@ export default function SettingsView({ serverAi, persistent, onKeyChanged, onToa
 
       {waste && waste.total > 0 && (
         <>
-          <h3 style={{ margin: 'var(--space-5) 0 8px' }}>Svinn</h3>
+          <h3 className="eyebrow">Svinn</h3>
           <div className="panel">
             <p>
               Av {waste.total} borttagna varor har {waste.thrown} slängts
@@ -137,7 +144,7 @@ export default function SettingsView({ serverAi, persistent, onKeyChanged, onToa
         </>
       )}
 
-      <h3 style={{ margin: 'var(--space-5) 0 8px' }}>Om</h3>
+      <h3 className="eyebrow">Om</h3>
       <div className="panel">
         <p style={{ marginBottom: 8 }}>
           Produktdata kommer från <a href="https://world.openfoodfacts.org" target="_blank" rel="noreferrer">Open Food Facts</a>,

@@ -71,7 +71,7 @@ export default function PhotoIdentifySheet({ onClose, onAddMany, onToast }) {
 
         {rows?.length > 0 && (
           <>
-            <h3 style={{ margin: 'var(--space-5) 0 8px' }}>{rows.length} förslag</h3>
+            <h3 className="eyebrow">{rows.length} förslag</h3>
             <div className="stack">
               {rows.map((r, i) => (
                 // <button> och inte <div onClick>: raden är ett val man ska
