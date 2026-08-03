@@ -3,7 +3,8 @@ import { X, Package, Loader2, Zap, ZapOff, Keyboard } from 'lucide-react';
 import { ensureReader, startCamera, stopCamera, scanLoop, buzz } from '../lib/scan';
 import { lookupProduct, teachProduct } from '../lib/api';
 import { addDays, toIsoDate } from '../lib/expiry';
-import { LOCATIONS } from '../lib/fmt';
+import { LOCATIONS, locationLabel } from '../lib/fmt';
+import { alreadyHome, summarize, totalCount } from '../lib/owned';
 
 /*
   Helskärmsskanner. Kameran fortsätter rulla efter varje träff så att en hel
@@ -22,7 +23,7 @@ const SCAN_DAYS = [
   { days: 30, label: '1 månad' },
 ];
 
-export default function ScannerView({ defaultLocation = 'fridge', onAdd, onClose, onToast }) {
+export default function ScannerView({ defaultLocation = 'fridge', items = [], onAdd, onConsumeOne, onClose, onToast }) {
   const videoRef = useRef(null);
   const [error, setError] = useState(null);
   const [starting, setStarting] = useState(true);
@@ -44,8 +45,16 @@ export default function ScannerView({ defaultLocation = 'fridge', onAdd, onClose
   const expiryFrom = (d) => (d ? toIsoDate(addDays(new Date(), d)) : null);
 
   const handleDetect = async (barcode) => {
-    // Låt den vara som redan ligger i kortet stå kvar tills den hanterats.
-    if (stateRef.current.pending?.status === 'loading') return;
+    /*
+      Låt den vara som redan ligger i kortet stå kvar tills den hanterats.
+
+      Spärren gällde bara 'loading', vilket inte var vad kommentaren lovade: en
+      annan kod som råkade komma in i bild kastade bort ett öppet kort — och med
+      det namnet man höll på att skriva in för en okänd streckkod. Autoläget
+      nollar pending självt efter varje träff, så en hel matkasse går fortfarande
+      att tömma i ett svep.
+    */
+    if (stateRef.current.pending) return;
     buzz();
     setFlash(true);
     setTimeout(() => setFlash(false), 250);
@@ -110,12 +119,24 @@ export default function ScannerView({ defaultLocation = 'fridge', onAdd, onClose
     await onAdd({ barcode, location, expiresOn: expiryFrom(days) });
   };
 
+  /*
+    Spara-knappen och Enter är kvar och tryckbara under hela nätverksanropet,
+    eftersom inget tillstånd ändras före await. Två tryck lade in varan två
+    gånger. Refen stänger glappet direkt, till skillnad från ett disabled som
+    slår igenom först vid nästa rendering.
+  */
+  const savingUnknown = useRef(false);
   const saveUnknown = async () => {
     const name = pending.name.trim();
-    if (!name) return;
-    await teachProduct(pending.barcode, { name });
-    setPending(null);
-    await onAdd({ barcode: pending.barcode, name, location, expiresOn: expiryFrom(days) });
+    if (!name || savingUnknown.current) return;
+    savingUnknown.current = true;
+    try {
+      await teachProduct(pending.barcode, { name });
+      setPending(null);
+      await onAdd({ barcode: pending.barcode, name, location, expiresOn: expiryFrom(days) });
+    } finally {
+      savingUnknown.current = false;
+    }
   };
 
   const addManual = async (name) => {
@@ -185,6 +206,12 @@ export default function ScannerView({ defaultLocation = 'fridge', onAdd, onClose
                   </div>
                 </div>
               </div>
+
+              {/* Har man den redan är det halva svaret på varför man skannar:
+                  antingen köpte man en till, eller så är den här slut. Båda
+                  ska gå att göra utan att lämna sökaren. */}
+              <Owned items={items} barcode={pending.barcode} onConsumeOne={onConsumeOne} />
+
               <div className="chips">
                 {SCAN_DAYS.map(d => (
                   <button key={d.days} className={`chip ${days === d.days ? 'chip-on' : ''}`}
@@ -221,6 +248,28 @@ export default function ScannerView({ defaultLocation = 'fridge', onAdd, onClose
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function Owned({ items, barcode, onConsumeOne }) {
+  const owned = alreadyHome(items, barcode);
+  if (!owned.length) return null;
+
+  // Den som går ut först är den man äter upp härnäst, så det är den som räknas
+  // ner. Sista exemplaret markeras som slut i stället — det är ett annat besked.
+  const next = owned[0];
+  const total = totalCount(owned);
+
+  return (
+    <div className="owned">
+      <div className="owned-text">
+        <h3>Redan hemma</h3>
+        <div className="owned-where">{summarize(owned)}</div>
+      </div>
+      <button className="btn-ghost btn-pill" onClick={() => onConsumeOne(next)}>
+        {total > 1 ? `Ta en ur ${locationLabel(next.location).toLowerCase()}` : 'Markera som slut'}
+      </button>
     </div>
   );
 }

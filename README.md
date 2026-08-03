@@ -9,11 +9,12 @@ du kan laga på det som faktiskt finns hemma.
 
 - **Kylskåpet, inte listan** — ett utrymme i taget (kyl, frys, skafferi) med innehållet ställt på hyllor efter hur bråttom det är: *Ät snart*, *Den här veckan*, *Håller sig*. Luckorna visar antal och en prick när något brådskar där inne.
 - **Streckkodsskanner** — kontinuerlig avläsning ur kameraströmmen (EAN-13/8, UPC-A/E, ITF). Kameran fortsätter efter varje träff, så en hel matkasse kan tömmas i ett svep. Autoläge lägger in varan direkt.
+- **Redan hemma** — vid en träff visar skannern om varan redan står inne, och var. Skanna en tom förpackning så räknas den ner; sista exemplaret markeras som slut. Den som går ut först räknas ner, för det är den man äter upp härnäst.
 - **Produktuppslag** — namn, märke, mängd och bild från [Open Food Facts](https://world.openfoodfacts.org). Okänd streckkod? Namnge varan en gång, så känns den igen nästa gång.
 - **En vara, ett formulär** — namn (med förslag ur allt appen redan sett), antal, plats och bäst före på samma skärm. Snabbvalen för datum finns även i skannern, så det går att sätta redan vid inläsningen.
 - **Bäst före** — snabbval, datumfält, eller fota datumet på förpackningen och låt Claude läsa det.
 - **AI-igenkänning** — fota lösvikt eller en hel hylla; Claude föreslår varor som du bockar av innan de läggs in.
-- **Receptförslag** — tre rätter utifrån lagret, med extra vikt vid det som snart blir dåligt.
+- **Receptförslag** — tre rätter utifrån lagret, med extra vikt vid det som snart blir dåligt. Välj måltid (frukost, lunch, middag) och skriv ett eget önskemål — *vegetariskt och snabbt*. Körningen fortsätter medan du går till kylskåpet, och förslagen sparas i en logg som överlever både flikbyte och omladdning.
 - **Delat hushåll** — lagret bor på servern. Dela nyckeln (länk eller QR-kod) så ser hela hushållet samma kylskåp.
 - **Svinnstatistik** — borttagna varor raderas inte, de markeras som förbrukade eller slängda.
 
@@ -55,7 +56,13 @@ API-nyckeln hos Anthropic**, det är det enda som faktiskt begränsar kostnaden.
    | `ANTHROPIC_API_KEY` | `sk-ant-…` | nej — utan den används klientnyckeln |
    | `ALLOWED_ORIGINS` | `https://din-app.vercel.app` | nej, men rekommenderas om AI-nyckeln ligger på servern |
 4. **Deploya om** efter att variablerna satts — de läses vid build, inte i efterhand.
-5. Öppna appen, gå till *Inställningar* och kontrollera att det **inte** står någon varning om `TURSO_URL`. `/api/health` svarar `persistent: true` när allt sitter.
+5. Öppna appen. Saknas Turso står det **Lagret sparas inte — varor kan försvinna** överst i alla vyer tills det är åtgärdat. `/api/health` svarar `persistent: true` när allt sitter.
+
+> **Varför det är värt besväret:** utan `TURSO_URL` bor lagret i serverns `/tmp`,
+> och på Vercel är den katalogen *per instans*. Två anrop kan träffa två olika
+> tomma databaser, så det ser ut som att varor försvinner när man byter utrymme
+> — fast det som händer är att man växlar mellan flera lager. Samma sak vid varje
+> cold start.
 
 Schemat skapas automatiskt vid första anropet, så det finns inget migreringssteg.
 

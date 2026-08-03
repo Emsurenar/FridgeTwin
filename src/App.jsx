@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Refrigerator, ChefHat, Settings as SettingsIcon, ScanLine } from 'lucide-react';
+import { Refrigerator, ChefHat, Settings as SettingsIcon, ScanLine, Loader2, AlertTriangle } from 'lucide-react';
 import * as api from './lib/api';
-import { checkServerAi, aiReady } from './lib/ai';
+import { checkServerAi, aiReady, suggestRecipes } from './lib/ai';
+import { loadLog, addEntry, removeEntry, clearLog, newEntryId } from './lib/recipeLog';
 import FridgeView from './components/FridgeView';
 import RecipesView from './components/RecipesView';
 import SettingsView from './components/SettingsView';
@@ -24,8 +25,33 @@ export default function App() {
   const [selected, setSelected] = useState(null);
   const [toast, setToast] = useState(null);
   const [serverAi, setServerAi] = useState(false);
-  const [persistent, setPersistent] = useState(false);
+  /*
+    null = vi vet inte än. Utan det tredje läget är "lagret sparas inte" sant
+    redan vid första målningen, så varningen hade blinkat rött vid varje start
+    även på en app med Turso inkopplad — och blivit stående för alltid om
+    health-anropet failade en enda gång. En varning som ropar varg slutar man
+    läsa, och just den här får inte sluta läsas.
+  */
+  const [persistent, setPersistent] = useState(null);
+  // Receptförslagen bor här och inte i RecipesView. Vyn avmonteras vid varje
+  // flikbyte, och tidigare försvann både pågående körning och färdiga förslag
+  // med den — man kunde inte ens titta i kylskåpet medan modellen tänkte.
+  const [recipeLog, setRecipeLog] = useState(loadLog);
+  const [recipeBusy, setRecipeBusy] = useState(false);
+  const [recipesUnseen, setRecipesUnseen] = useState(false);
   const toastTimer = useRef(null);
+  const tabRef = useRef(tab);
+  tabRef.current = tab;
+  const toastRef = useRef(null);
+  toastRef.current = toast;
+  /*
+    Två spärrar mot dubbeltryck. Knapparnas disabled sätts först vid nästa
+    rendering, så två snabba tryck hinner igenom båda två — och då skickas
+    samma count-1 två gånger, vilket lämnar kvar ett exemplar för mycket.
+    Refs uppdateras direkt och stänger glappet.
+  */
+  const consuming = useRef(new Set());
+  const recipesRunning = useRef(false);
 
   const showToast = useCallback((message, type = 'success', action = null) => {
     clearTimeout(toastTimer.current);
@@ -63,6 +89,12 @@ export default function App() {
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, [load]);
+
+  // Pricken släcks så fort man tittat, oavsett vilken väg man tog dit —
+  // navknappen, toasten eller "Öppna inställningar".
+  useEffect(() => {
+    if (tab === 'recipes') setRecipesUnseen(false);
+  }, [tab]);
 
   // Servern slår ihop dubbletter, så svaret kan vara antingen en ny rad eller
   // en uppdaterad. Ett enda upsert-mönster täcker båda.
@@ -145,6 +177,81 @@ export default function App() {
     }
   };
 
+  /*
+    Att skanna en tom förpackning är samma sak som att säga "den är uppäten".
+    Sista exemplaret tas bort med ångra-toasten; är det fler kvar räknas det
+    bara ner, för då är varan inte slut.
+  */
+  const handleConsumeOne = async (item) => {
+    if (consuming.current.has(item.id)) return;
+    consuming.current.add(item.id);
+    try {
+      // Servern räknar, inte vi. Antalet i klientens minne kan vara timmar
+      // gammalt, och att skriva tillbaka det hade skrivit över vad någon annan
+      // i hushållet gjort under tiden.
+      const { item: updated, removed } = await api.consumeOne(item.id);
+      if (!removed) {
+        upsert(updated);
+        return showToast(`${updated.name}: ${updated.count} kvar`);
+      }
+      setItems(prev => prev.filter(i => i.id !== item.id));
+      showToast(`${updated.name} slut`, 'success', {
+        label: 'Ångra',
+        onClick: async () => {
+          setToast(null);
+          try {
+            upsert(await api.restoreItem(item.id));
+          } catch (e) {
+            showToast(e.message, 'danger');
+          }
+        },
+      });
+    } catch (e) {
+      if (!dropIfGone(item.id, e)) showToast(e.message, 'danger');
+    } finally {
+      consuming.current.delete(item.id);
+    }
+  };
+
+  /*
+    Receptkörningen ligger i App så att den överlever ett flikbyte. Blir den
+    klar medan man tittar på något annat säger toasten till — annars hade man
+    fått gissa när det var dags att gå tillbaka.
+  */
+  const runRecipes = useCallback(async ({ meal, request }) => {
+    if (recipesRunning.current) return;
+    recipesRunning.current = true;
+    setRecipeBusy(true);
+    try {
+      const recipes = await suggestRecipes(items, { meal, request });
+      if (!recipes.length) return showToast('Inga förslag den här gången', 'danger');
+      setRecipeLog(prev => addEntry(prev, {
+        id: newEntryId(),
+        at: new Date().toISOString(),
+        meal,
+        request,
+        recipes,
+      }));
+      if (tabRef.current !== 'recipes') {
+        // Pricken i navet är beskedet som inte kan gå förlorat. Toasten är ett
+        // tillägg — och den får inte kasta bort en ångra-knapp som ligger
+        // framme, för den åtgärden går inte att nå på något annat sätt.
+        setRecipesUnseen(true);
+        if (!toastRef.current?.action) {
+          showToast('Receptförslagen är klara', 'success', {
+            label: 'Visa',
+            onClick: () => { setToast(null); setTab('recipes'); },
+          });
+        }
+      }
+    } catch (e) {
+      showToast(e.message, 'danger');
+    } finally {
+      recipesRunning.current = false;
+      setRecipeBusy(false);
+    }
+  }, [items, showToast]);
+
   const handleKeyChanged = (reset = false) => {
     if (reset) api.resetKey();
     setItems([]);
@@ -153,6 +260,18 @@ export default function App() {
   };
 
   const aiOk = serverAi || aiReady();
+
+  /*
+    Utan TURSO_URL ligger lagret i serverns /tmp. På Vercel är den katalogen
+    dessutom *per instans*, så två anrop kan träffa två olika tomma databaser —
+    det ser ut som att varor försvinner när man byter utrymme, fast det som
+    händer är att man växlar mellan flera lager.
+
+    Varningen fanns bara under Inställningar, dit man inte går förrän man redan
+    tappat maten. Den hör hemma här, ovanför allt, tills den är åtgärdad.
+  */
+  const isLocalhost = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(window.location.hostname);
+  const storageAtRisk = persistent === false && !isLocalhost;
 
   const navItems = [
     { id: 'inventory', icon: Refrigerator, label: 'Kylskåpet' },
@@ -163,13 +282,23 @@ export default function App() {
   return (
     <>
       <div className="content-area" tabIndex={-1}>
+        {storageAtRisk && (
+          <button className="banner banner-danger banner-btn" onClick={() => setTab('settings')}>
+            <AlertTriangle size={17} />
+            <span>Lagret sparas inte — varor kan försvinna. Läs mer</span>
+          </button>
+        )}
+
         {tab === 'inventory' && (
           <FridgeView items={items} loading={loading} error={loadError} onRetry={load}
             door={door} onDoorChange={setDoor} onSelect={setSelected}
             onAddClick={() => setAddOpen(true)} />
         )}
         {tab === 'recipes' && (
-          <RecipesView items={items} aiOk={aiOk} onToast={showToast} onGoToSettings={() => setTab('settings')} />
+          <RecipesView items={items} aiOk={aiOk} busy={recipeBusy} log={recipeLog}
+            onRun={runRecipes} onGoToSettings={() => setTab('settings')}
+            onForget={(id) => setRecipeLog(prev => removeEntry(prev, id))}
+            onClear={() => setRecipeLog(clearLog())} />
         )}
         {tab === 'settings' && (
           <SettingsView serverAi={serverAi} persistent={persistent}
@@ -194,15 +323,26 @@ export default function App() {
               aria-current={tab === item.id ? 'page' : undefined}
               aria-label={item.label}
               onClick={() => setTab(item.id)}>
-              <item.icon size={19} />
-              <span>{item.label}</span>
+              {/* Snurran i navet är hela kvittot på att körningen fortsätter
+                  när man går härifrån. Utan den ser bakgrundsarbetet ut som
+                  ingenting alls. */}
+              {item.id === 'recipes' && recipeBusy
+                ? <Loader2 size={19} className="spin" />
+                : <item.icon size={19} />}
+              <span>
+                {item.label}
+                {item.id === 'recipes' && recipesUnseen && !recipeBusy && (
+                  <i className="nav-dot" aria-label="nya receptförslag" />
+                )}
+              </span>
             </button>
           ))}
         </nav>
       )}
 
       {scannerOpen && (
-        <ScannerView defaultLocation={door} onAdd={handleAdd}
+        <ScannerView defaultLocation={door} items={items} onAdd={handleAdd}
+          onConsumeOne={handleConsumeOne}
           onClose={() => setScannerOpen(false)} onToast={showToast} />
       )}
       {selected && (

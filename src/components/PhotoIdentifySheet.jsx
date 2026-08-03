@@ -74,7 +74,11 @@ export default function PhotoIdentifySheet({ onClose, onAddMany, onToast }) {
             <h3 style={{ margin: 'var(--space-5) 0 8px' }}>{rows.length} förslag</h3>
             <div className="stack">
               {rows.map((r, i) => (
-                <div key={i} className="item-row" onClick={() => toggle(i)}>
+                // <button> och inte <div onClick>: raden är ett val man ska
+                // kunna göra med tangentbord, och aria-pressed säger vilket
+                // läge den står i när färgen inte går att se.
+                <button key={i} type="button" className="item-row"
+                  onClick={() => toggle(i)} aria-pressed={r.checked}>
                   <div className={`check-box ${r.checked ? 'on' : ''}`} aria-hidden="true">
                     <Check size={16} />
                   </div>
@@ -86,7 +90,7 @@ export default function PhotoIdentifySheet({ onClose, onAddMany, onToast }) {
                     </div>
                   </div>
                   {r.count > 1 && <span className="count-badge">{r.count}</span>}
-                </div>
+                </button>
               ))}
             </div>
 

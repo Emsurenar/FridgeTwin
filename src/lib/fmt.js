@@ -1,4 +1,4 @@
-import { daysUntil, parseIsoDate } from './expiry';
+import { daysUntil, parseIsoDate } from './expiry.js';
 
 const MONTHS = ['jan', 'feb', 'mars', 'april', 'maj', 'juni', 'juli', 'aug', 'sep', 'okt', 'nov', 'dec'];
 
@@ -45,3 +45,17 @@ export function fmtExpiryShort(iso) {
 
 export const fmtCount = (item) =>
   item.count > 1 ? `${item.count} st` : (item.quantity || '');
+
+// Tidsstämpel i receptloggen. Klockslag är det som skiljer två körningar samma
+// kväll åt, så det står alltid med — datumet bara när det inte är i dag.
+export function fmtLogTime(iso) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const p = (n) => String(n).padStart(2, '0');
+  const time = `${p(d.getHours())}:${p(d.getMinutes())}`;
+  const today = new Date();
+  const yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
+  if (d.toDateString() === today.toDateString()) return `i dag ${time}`;
+  if (d.toDateString() === yesterday.toDateString()) return `i går ${time}`;
+  return `${d.getDate()} ${MONTHS[d.getMonth()]} ${time}`;
+}

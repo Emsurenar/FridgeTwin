@@ -14,7 +14,7 @@ export function Stepper({ value, onChange, min = 1 }) {
         disabled={value <= min} aria-label="Färre">
         <Minus size={17} />
       </button>
-      <span className="stepper-value mono">{value}</span>
+      <span className="stepper-value">{value}</span>
       <button className="btn-ghost" onClick={() => onChange(value + 1)} aria-label="Fler">
         <Plus size={17} />
       </button>

@@ -234,6 +234,32 @@ app.post('/api/inventory', requireKey, async (req, res) => {
   res.status(201).json({ item: rowToItem(rows[0]), merged: false });
 });
 
+/*
+  Räkna ner ett steg — "jag åt upp en".
+
+  Egen väg och inte PATCH { count: n }, för avsikten är *relativ* medan count är
+  absolut. Skickar klienten ett absolut tal räknat på sin egen ögonblicksbild
+  skriver den över vad någon annan i hushållet hunnit göra: har sambon ätit två
+  sedan din flik hämtade lagret, får "ta en" antalet att gå *upp*. Här räknas
+  det i databasen i stället, i samma sats som skrivningen.
+
+  Skulle steget ta antalet under 1 är varan slut, och då är rätt svar en
+  borttagning — samma sak som stegaren gör med noll.
+*/
+app.post('/api/inventory/:id/consume', requireKey, async (req, res) => {
+  const { rows } = await db.execute({
+    sql: `UPDATE items SET count = count - 1
+          WHERE id = ? AND household_id = ? AND removed_at IS NULL AND count > 1
+          RETURNING *`,
+    args: [req.params.id, req.householdId],
+  });
+  if (rows[0]) return res.json({ item: rowToItem(rows[0]), removed: false });
+
+  // Inga rader betyder antingen count = 1 (sista exemplaret) eller att raden
+  // inte finns. removeItem skiljer dem åt: den svarar 404 i det senare fallet.
+  return removeItem(req, res, 'consumed', true);
+});
+
 app.patch('/api/inventory/:id', requireKey, async (req, res) => {
   const body = req.body || {};
   const sets = [];
@@ -274,14 +300,14 @@ app.patch('/api/inventory/:id', requireKey, async (req, res) => {
   res.json({ item: rowToItem(rows[0]) });
 });
 
-async function removeItem(req, res, reason) {
+async function removeItem(req, res, reason, flagRemoved = false) {
   const { rows } = await db.execute({
     sql: `UPDATE items SET removed_at = ?, removed_reason = ?
           WHERE id = ? AND household_id = ? AND removed_at IS NULL RETURNING *`,
     args: [new Date().toISOString(), reason, req.params.id, req.householdId],
   });
   if (!rows[0]) return res.status(404).json({ error: 'Varan finns inte' });
-  res.json({ item: rowToItem(rows[0]) });
+  res.json({ item: rowToItem(rows[0]), ...(flagRemoved ? { removed: true } : {}) });
 }
 
 app.delete('/api/inventory/:id', requireKey, (req, res) => {

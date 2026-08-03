@@ -83,6 +83,10 @@ export const removeItem = (id, reason = 'consumed') =>
   request(`/api/inventory/${id}?reason=${reason}`, { method: 'DELETE' }).then(r => r.item);
 export const restoreItem = (id) => request(`/api/inventory/${id}/restore`, { method: 'POST' }).then(r => r.item);
 
+// Ett steg ner, uträknat på servern. Svarar { item, removed } — removed betyder
+// att det var sista exemplaret och att varan nu är markerad som slut.
+export const consumeOne = (id) => request(`/api/inventory/${id}/consume`, { method: 'POST' });
+
 // null = okänd streckkod (404), vilket är ett väntat svar och inte ett fel.
 export async function lookupProduct(barcode) {
   try {

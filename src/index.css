@@ -374,6 +374,17 @@ button:disabled:active { transform: none; }
   transition: color 0.2s;
 }
 .nav-item.active { color: var(--accent-ink); font-weight: 600; }
+/* Prick för färdiga receptförslag. Toasten kan hinna ersättas av en annan;
+   det här beskedet står kvar tills man tittat. */
+.nav-item .nav-dot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin-left: 4px;
+  vertical-align: 2px;
+  border-radius: 50%;
+  background: var(--accent);
+}
 
 /* Upphöjd skannerknapp i mitten */
 .scan-nav-btn {
@@ -602,7 +613,10 @@ button:disabled:active { transform: none; }
   transition: transform 0.15s, box-shadow 0.15s;
 }
 .tile:active { transform: translateY(1px) scale(0.98); }
-.tile-now { border-color: rgba(201, 116, 28, 0.45); }
+/* Klassen är `tile-${state}` ur expiryState, alltså tile-soon — inte tile-now.
+   Regeln hette fel och matchade ingenting, så allt som gick ut inom tre dagar
+   stod utan den ljumma kanten. */
+.tile-soon { border-color: rgba(201, 116, 28, 0.45); }
 .tile-expired, .tile-today { border-color: rgba(179, 58, 34, 0.45); }
 
 .tile-img {
@@ -671,7 +685,15 @@ button:disabled:active { transform: none; }
 /* ---- Formulärfält ---- */
 .stepper { display: flex; align-items: center; gap: var(--space-3); }
 .stepper button { width: 46px; min-width: 46px; padding: 12px 0; }
-.stepper-value { font-size: 1.15rem; min-width: 32px; text-align: center; }
+/* Egen font-family i stället för klassen .mono: den står 500 rader längre ner
+   med samma specificitet och tog över font-size, så antalet renderades i
+   0.85rem trots regeln här. */
+.stepper-value {
+  font-family: var(--font-mono);
+  font-size: 1.15rem;
+  min-width: 32px;
+  text-align: center;
+}
 
 .chips { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: var(--space-3); }
 .chip {
@@ -768,17 +790,27 @@ button:disabled:active { transform: none; }
 .picked .item-sub { display: inline-flex; align-items: center; gap: 5px; color: var(--accent-ink); }
 
 /* Rad med avbockningsbara förslag (fotoigenkänningen) */
+/* Raden är en <button>, så knappstilarna måste tas tillbaka: vänsterställd
+   text, brödtypsnitt och normal vikt. */
 .item-row {
   display: flex;
   align-items: center;
+  justify-content: flex-start;
+  text-align: left;
   gap: 10px;
+  width: 100%;
   padding: 9px 11px;
   background: var(--bg-elevated);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 1rem;
+  font-weight: 400;
+  letter-spacing: 0;
   cursor: pointer;
 }
-.item-row:active { background: var(--bg-surface-hover); }
+.item-row:active { background: var(--bg-surface-hover); transform: none; }
 /* Bocken: ifylld = vald. Fylld yta tål vit text, till skillnad från text i
    samma färg — det är hela poängen med att --is duger till bådadera. */
 .check-box {
@@ -850,8 +882,28 @@ button:disabled:active { transform: none; }
   font-size: 0.88rem;
   font-weight: 500;
 }
-.banner-warn { background: var(--warn-soft); color: var(--warn-ink); }
-.banner-danger { background: var(--danger-soft); color: var(--danger-ink); }
+/*
+  Bannerna har egna, ogenomskinliga färger i stället för --danger-soft/--warn-soft.
+  De mjuka tonerna är alfa över vad som råkar ligga under, och på appens
+  bakgrund (--stal) landade lagringsvarningen på 4,07:1 — under kravet, och
+  därmed appens sämst läsbara text trots att det är den som säger att maten kan
+  försvinna. Här är ytan given och kontrasten räknad: 6,8:1 för båda.
+*/
+.banner-warn { background: #FBEEDC; color: #7A4508; border: 1px solid #A87B2E; }
+.banner-danger { background: #F7E6E2; color: #8E2D18; }
+/* Bannern som knapp: den ärver knappens centrering och displayfont, och
+   varken det ena eller det andra hör hemma i en varningstext. */
+.banner-btn {
+  justify-content: flex-start;
+  text-align: left;
+  font-family: var(--font-body);
+  letter-spacing: 0;
+  /* Två ljusa ytor kan aldrig nå 3:1 mot varandra, så kanten får bära
+     avgränsningen. #BA6650 ger 3,35:1 mot appens bakgrund — kravet för en
+     kontrolls yttre gräns. */
+  border: 1px solid #BA6650;
+}
+.banner-btn:active { transform: none; background: #F0D6D0; }
 
 .empty-state {
   text-align: center;
@@ -938,6 +990,61 @@ button:disabled:active { transform: none; }
 
 /* ---- Recept ---- */
 .recipe-card { margin-bottom: var(--space-3); }
+.recipe-steps {
+  padding-left: 18px;
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  line-height: 1.7;
+}
+/* Fyra segment ska rymmas på en 320px-skärm utan att bryta rad. */
+.meal-picker button { font-size: 0.78rem; padding: 9px 2px; }
+
+/*
+  Receptloggen. Varje körning är en egen post med sin måltid, sitt önskemål och
+  sin tidsstämpel — utan dem blir loggen en hög rätter man inte minns varför man
+  bad om.
+*/
+.log-entry { margin-top: var(--space-6); }
+.log-head {
+  gap: 8px;
+  margin-bottom: var(--space-2);
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-color);
+}
+/* Önskemålet är användarens egna ord och citeras därför, med en linje som
+   visar var citatet börjar och slutar. */
+.log-wish {
+  border-left: 2px solid var(--accent);
+  padding-left: 10px;
+  margin-bottom: var(--space-3);
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+/* ---- Redan hemma (i skannern) ----
+   Kall och tyst: att man redan äger varan är en upplysning, inte en varning. */
+.owned {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  padding: 10px 12px;
+  margin-bottom: var(--space-3);
+  background: var(--bg-sunken);
+  border-radius: var(--radius-sm);
+}
+/* Får radbryta i stället för att trunkeras: "1 st i frys…" är ett sämre
+   besked än två rader. Räcker inte bredden ändå hamnar knappen på egen rad. */
+.owned-text { flex: 1 1 60%; min-width: 0; }
+.owned-where {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+.owned button { flex: 0 0 auto; }
 .tag {
   display: inline-block;
   font-size: 0.72rem;
