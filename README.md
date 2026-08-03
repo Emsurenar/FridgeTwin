@@ -128,16 +128,40 @@ gör cachen nödvändig. Andra skanningen av samma vara når aldrig deras API.
 
 ## Design
 
-Färgerna följer [Lifesum](https://lifesum.com/sv/): varm off-white (`#FAF5F0` /
-`#F5EBE1`), nästan svart text (`#0E0E0E`) och exakt en grön (`#21BA3A`), med
-versala knappar och 8px-radier. DM Sans står in för deras TT Norms Pro.
+**Värme betyder förfall.** Ett kylskåp håller undan förruttnelse genom att vara
+kallt, så hela appen är kall — plåt (`#E3E9EA`), lyst innervägg (`#F5F9F9`),
+kall nästan-svart text (`#101719`) och exakt en mättad kall färg (`#0F6C7E`)
+för allt man kan trycka på. Den enda värmen i appen betyder att maten håller på
+att dö: ljummet (`#C9741C`) inom dagar, varmt (`#B33A22`) i dag eller passerat.
 
-Grönt som fyllning tål vit text, men som *text* på ljus botten är `#21BA3A`
-oläsligt (ca 2,3:1). Därför finns två variabler: `--accent` fyller ytor,
-`--accent-ink` skriver text.
+Det är också en läsbarhetsfråga. Den gamla skalan var röd/gul/grön, alltså exakt
+den axel som försvinner vid rödgrönblindhet. Kall→varm är både en ton- *och* en
+ljushetsaxel och överlever därför färgseendet.
 
-Kylskåpsinsidan är svalare än appens varma off-white och har ett ljus uppe vid
-taket — det är det som skiljer "en lucka som står öppen" från "en lista på en
-sida". Hyllplanen är ritade glaskanter så att varorna står på något i stället
-för att sväva. Rutorna på en hylla är alltid lika höga: ojämna höjder var halva
+`#0F6C7E` klarar 5,7:1 mot innerväggen som text *och* 6,1:1 med vit text ovanpå,
+så den behöver inte den fyllnad/text-uppdelning den gamla gröna kärvde.
+`#C9741C` går inte att få dit (3,3:1 som text) — där finns `--warn-ink` kvar, av
+fysik och inte av smak.
+
+Typsnitten har tre roller, och rollen avgör vem som talar: **Familjen Grotesk**
+(Letters from Sweden, ritat för svensk offentlig text) är människans ord —
+rubriker, varunamn, knappar. **IBM Plex Sans** är prosan som förklarar. **IBM
+Plex Mono** är maskinens avläsningar — datum, antal, streckkoder. Ett bäst
+före-datum är en avläsning och sätts därför aldrig i Familjen.
+
+### Signaturen: ljuset
+
+Skåpet har en enda ljuskälla, i taket, och **dess färgtemperatur är datan**.
+`FridgeView` räknar ut `--larm` (0, 0,5 eller 1) ur den öppna luckans innehåll,
+och CSS:en tonar in ett varmt lager i toppen. Går något ut snart lyser det varmt
+däruppe — kylan sviker just där. Är allt i sin ordning är ljuset genomgående
+kallt och vitt. Man ser hela kylskåpets hälsa på ljusets färg innan man läst ett
+enda ord, och därför ligger *Ät snart* högst upp: ljuset landar på det som
+brådskar.
+
+Ljusgradienten är appens **enda** gradient. Allt annat är matt — det är regeln
+som håller designen från att glida iväg till ännu en glasig instrumentpanel.
+
+Hyllplanen är ritade glaskanter så att varorna står på något i stället för att
+sväva. Rutorna på en hylla är alltid lika höga: ojämna höjder var halva
 rörigheten i den gamla listan.

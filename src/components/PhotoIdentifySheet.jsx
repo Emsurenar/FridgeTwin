@@ -75,12 +75,8 @@ export default function PhotoIdentifySheet({ onClose, onAddMany, onToast }) {
             <div className="stack">
               {rows.map((r, i) => (
                 <div key={i} className="item-row" onClick={() => toggle(i)}>
-                  <div className="thumb" style={{
-                    background: r.checked ? 'var(--accent)' : 'var(--bg-elevated)',
-                    color: r.checked ? 'var(--bg-base)' : 'var(--text-muted)',
-                    width: 32, height: 32,
-                  }}>
-                    {r.checked && <Check size={16} />}
+                  <div className={`check-box ${r.checked ? 'on' : ''}`} aria-hidden="true">
+                    <Check size={16} />
                   </div>
                   <div className="truncate" style={{ flex: 1 }}>
                     <div className="item-name truncate">{r.name}</div>

@@ -1,7 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="14" fill="#FAF5F0"/>
-  <rect x="19" y="12" width="26" height="40" rx="6" fill="none" stroke="#21BA3A" stroke-width="3.5"/>
-  <line x1="19" y1="27" x2="45" y2="27" stroke="#21BA3A" stroke-width="3.5"/>
-  <line x1="26" y1="18" x2="26" y2="23" stroke="#21BA3A" stroke-width="3.5" stroke-linecap="round"/>
-  <line x1="26" y1="32" x2="26" y2="39" stroke="#21BA3A" stroke-width="3.5" stroke-linecap="round"/>
+  <!-- Insidan är lyst uppifrån, precis som i appen. Det är skillnaden mellan
+       en ikon av ett skåp och en ikon av ett skåp som står öppet. -->
+  <defs>
+    <linearGradient id="ljus" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#CFDEE1"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="#E3E9EA"/>
+  <rect x="19" y="12" width="26" height="40" rx="6" fill="url(#ljus)"/>
+  <rect x="19" y="12" width="26" height="40" rx="6" fill="none" stroke="#0F6C7E" stroke-width="3.5"/>
+  <line x1="19" y1="27" x2="45" y2="27" stroke="#0F6C7E" stroke-width="3.5"/>
+  <line x1="26" y1="18" x2="26" y2="23" stroke="#0F6C7E" stroke-width="3.5" stroke-linecap="round"/>
+  <line x1="26" y1="32" x2="26" y2="39" stroke="#0F6C7E" stroke-width="3.5" stroke-linecap="round"/>
 </svg>

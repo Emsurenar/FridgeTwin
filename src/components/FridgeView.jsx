@@ -53,10 +53,27 @@ function Tile({ item, onClick, showLocation }) {
   );
 }
 
-function Shelf({ label, items, onSelect }) {
+/*
+  Ljuset i skåpet är signalen: kallt vitt när allt är i sin ordning, varmt när
+  kylan sviker. Räknas på det man faktiskt tittar in i — den öppna luckan eller
+  sökträffarna — och sätts som --larm på .fridge, där CSS:en tonar in det varma
+  lagret. Tre steg räcker; en glidande skala hade låtsats om en precision som
+  "något går ut i dag" inte har.
+*/
+function larmOf(list) {
+  let level = 0;
+  for (const item of list) {
+    const state = expiryState(item.expiresOn);
+    if (state === 'expired' || state === 'today') return 1;
+    if (state === 'soon') level = 0.5;
+  }
+  return level;
+}
+
+function Shelf({ id, label, items, onSelect }) {
   if (!items.length) return null;
   return (
-    <div className="shelf">
+    <div className={`shelf shelf-${id}`}>
       <div className="shelf-head">
         <h3>{label}</h3>
         <span className="shelf-count">{items.length}</span>
@@ -137,7 +154,7 @@ export default function FridgeView({ items, loading, error, door, onDoorChange, 
       )}
 
       {hits ? (
-        <div className="fridge">
+        <div className="fridge" style={{ '--larm': larmOf(hits) }}>
           {hits.length
             ? (
               <div className="shelf">
@@ -171,7 +188,7 @@ export default function FridgeView({ items, loading, error, door, onDoorChange, 
           </div>
 
           {/* key på luckan: innehållet monteras om vid byte, så ljuset tänds igen */}
-          <div className="fridge" key={door}>
+          <div className="fridge" key={door} style={{ '--larm': larmOf(shelves.flatMap(s => s.items)) }}>
             {/* Tomt och "inte hämtat än" ser likadant ut i datan men betyder helt
                 olika saker — utan det här står det "Kylen är tom" varje gång
                 appen startar, en halvsekund innan varorna dyker upp. */}
@@ -192,7 +209,7 @@ export default function FridgeView({ items, loading, error, door, onDoorChange, 
                 </p>
               )
               : shelves.map(s => (
-                <Shelf key={s.id} label={s.label} items={s.items} onSelect={onSelect} />
+                <Shelf key={s.id} id={s.id} label={s.label} items={s.items} onSelect={onSelect} />
               ))}
           </div>
 

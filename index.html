@@ -5,7 +5,13 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.json" />
-    <meta name="theme-color" content="#FAF5F0" />
+    <meta name="theme-color" content="#E3E9EA" />
+    <!-- Typsnitten laddas här och inte via @import i CSS:en: ett @import hittas
+         först när webbläsaren hunnit tolka stilmallen, vilket skjuter upp
+         hämtningen ett helt steg. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" />
     <meta name="description" content="FridgeTwin — en digital tvilling av kylskåpet. Skanna streckkoder, håll koll på bäst före-datum och laga mat på det som finns hemma." />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Kylskåpet" />
