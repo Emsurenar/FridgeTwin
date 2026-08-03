@@ -7,7 +7,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { createClient } from '@libsql/client';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -24,6 +23,20 @@ export const usingTurso = Boolean(process.env.TURSO_URL);
 if (!usingTurso && process.env.VERCEL) {
   console.warn('TURSO_URL saknas — lagret hamnar i /tmp och försvinner vid cold start.');
 }
+
+/*
+  Två klienter, valda efter URL:en:
+
+  - Turso (libsql://, https://) → '@libsql/client/web', som pratar HTTP och inte
+    innehåller en rad native-kod. Det är den som körs på Vercel, och en native
+    binär i en serverless-funktion är precis den sorts sak som fungerar lokalt
+    och pajar i produktion.
+  - Lokal fil → '@libsql/client/node', som behöver den native modulen — men den
+    körs bara på din egen maskin.
+*/
+const { createClient } = usingTurso
+  ? await import('@libsql/client/web')
+  : await import('@libsql/client/node');
 
 export const db = createClient(
   usingTurso

@@ -61,7 +61,14 @@ async function request(path, { method = 'GET', body } = {}) {
   }
   if (res.status === 204) return null;
   const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new ApiError(json.error || `Fel ${res.status}`, res.status);
+  if (!res.ok) {
+    // 502–504 kommer från en server som startar upp eller ligger nere. Den
+    // svarar sällan med JSON, och "Fel 503" säger inget om vad man ska göra.
+    const fallback = res.status >= 502 && res.status <= 504
+      ? 'Servern svarar inte just nu'
+      : `Fel ${res.status}`;
+    throw new ApiError(json.error || fallback, res.status);
+  }
   return json;
 }
 

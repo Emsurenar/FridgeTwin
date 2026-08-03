@@ -14,10 +14,13 @@ import Toast from './components/Toast';
 export default function App() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [tab, setTab] = useState('inventory');
   const [scannerOpen, setScannerOpen] = useState(false);
   const [photoOpen, setPhotoOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
+  // Den öppna luckan styr var nya varor hamnar — i formuläret och i skannern.
+  const [door, setDoor] = useState('fridge');
   const [selected, setSelected] = useState(null);
   const [toast, setToast] = useState(null);
   const [serverAi, setServerAi] = useState(false);
@@ -34,7 +37,12 @@ export default function App() {
     setLoading(true);
     try {
       setItems(await api.getInventory());
+      setLoadError(null);
     } catch (e) {
+      // Tomt lager och "kunde inte hämta lagret" ser likadant ut i datan men är
+      // olika saker. Utan skillnaden påstår appen att kylskåpet är tomt när det
+      // egentligen är servern som är nere.
+      setLoadError(e.message);
       showToast(e.message, 'danger');
     } finally {
       setLoading(false);
@@ -90,12 +98,25 @@ export default function App() {
     showToast(added.length === 1 ? `${added[0].name} inlagd` : `${added.length} varor inlagda`);
   };
 
+  /*
+    Lagret delas, så en vara kan ha tagits bort av någon annan i hushållet
+    medan den låg öppen här. Servern svarar 404, och då är det egna listan som
+    har fel — inte servern. Rätt svar är att släppa varan och säga varför,
+    inte att låta den ligga kvar och gå att trycka på igen.
+  */
+  const dropIfGone = (id, e) => {
+    if (e.status !== 404) return false;
+    setItems(prev => prev.filter(i => i.id !== id));
+    showToast('Varan är redan borttagen', 'danger');
+    return true;
+  };
+
   const handlePatch = async (id, patch) => {
     try {
       upsert(await api.patchItem(id, patch));
       showToast('Sparat');
     } catch (e) {
-      showToast(e.message, 'danger');
+      if (!dropIfGone(id, e)) showToast(e.message, 'danger');
     }
   };
 
@@ -116,7 +137,10 @@ export default function App() {
         },
       });
     } catch (e) {
-      upsert(item); // gick inte — lägg tillbaka raden
+      // 404 betyder att någon annan redan tagit bort den — då är den borta,
+      // och att lägga tillbaka raden vore att ljuga om lagret.
+      if (e.status === 404) return showToast('Varan var redan borttagen', 'danger');
+      upsert(item); // något annat gick fel — lägg tillbaka raden
       showToast(e.message, 'danger');
     }
   };
@@ -140,7 +164,8 @@ export default function App() {
     <>
       <div className="content-area" tabIndex={-1}>
         {tab === 'inventory' && (
-          <FridgeView items={items} loading={loading} onSelect={setSelected}
+          <FridgeView items={items} loading={loading} error={loadError} onRetry={load}
+            door={door} onDoorChange={setDoor} onSelect={setSelected}
             onAddClick={() => setAddOpen(true)} />
         )}
         {tab === 'recipes' && (
@@ -177,14 +202,15 @@ export default function App() {
       )}
 
       {scannerOpen && (
-        <ScannerView onAdd={handleAdd} onClose={() => setScannerOpen(false)} onToast={showToast} />
+        <ScannerView defaultLocation={door} onAdd={handleAdd}
+          onClose={() => setScannerOpen(false)} onToast={showToast} />
       )}
       {selected && (
         <ItemSheet item={selected} aiOk={aiOk} onClose={() => setSelected(null)}
           onPatch={handlePatch} onRemove={handleRemove} onToast={showToast} />
       )}
       {addOpen && (
-        <AddSheet aiOk={aiOk} onClose={() => setAddOpen(false)} onAdd={handleAdd} onToast={showToast}
+        <AddSheet aiOk={aiOk} defaultLocation={door} onClose={() => setAddOpen(false)} onAdd={handleAdd} onToast={showToast}
           onScan={() => { setAddOpen(false); setScannerOpen(true); }}
           onPhoto={() => { setAddOpen(false); setPhotoOpen(true); }} />
       )}

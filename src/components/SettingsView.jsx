@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { QrCode, Copy, Trash2, ExternalLink } from 'lucide-react';
+import { QrCode, Copy, Trash2, ExternalLink, AlertTriangle } from 'lucide-react';
 import { getKey, setKey, shareUrl, getHistory } from '../lib/api';
 import { getApiKey, setApiKey, getModel, setModel, MODELS } from '../lib/ai';
 import { qrSvg } from '../lib/qr';
@@ -11,6 +11,7 @@ export default function SettingsView({ serverAi, persistent, onKeyChanged, onToa
   const [model, setModelState] = useState(getModel());
   const [qr, setQr] = useState(null);
   const [waste, setWaste] = useState(null);
+  const isLocalhost = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(window.location.hostname);
 
   useEffect(() => {
     // Svinnsiffran kommer gratis ur historiken — borttagna varor raderas aldrig.
@@ -61,6 +62,18 @@ export default function SettingsView({ serverAi, persistent, onKeyChanged, onToa
   return (
     <>
       <h1>Inställningar</h1>
+
+      {/* Deployad utan Turso är det värsta läget: allt fungerar, tills servern
+          startar om och lagret är tomt. Då ska man ha blivit varnad först. */}
+      {!persistent && !isLocalhost && (
+        <div className="banner banner-warn" style={{ marginTop: 'var(--space-4)' }}>
+          <AlertTriangle size={17} />
+          <span>
+            Servern saknar <span className="mono">TURSO_URL</span> — lagret ligger på ett tillfälligt
+            filsystem och försvinner när servern startar om. Se README:n.
+          </span>
+        </div>
+      )}
 
       <h3 style={{ margin: 'var(--space-5) 0 8px' }}>Hushåll</h3>
       <div className="panel">

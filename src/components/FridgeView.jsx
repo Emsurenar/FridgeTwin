@@ -69,8 +69,13 @@ function Shelf({ label, items, onSelect }) {
   );
 }
 
-export default function FridgeView({ items, loading, onSelect, onAddClick }) {
-  const [door, setDoor] = useState('fridge');
+/*
+  Vilken lucka som är öppen bor i App och inte här. Det är inte bara en vy-
+  detalj: lägger man in en vara medan frysen står öppen ska den hamna i frysen,
+  och både inläggningsformuläret och skannern behöver därför veta vad man
+  tittar in i.
+*/
+export default function FridgeView({ items, loading, error, door, onDoorChange, onRetry, onSelect, onAddClick }) {
   const [query, setQuery] = useState('');
   const [searching, setSearching] = useState(false);
 
@@ -154,7 +159,7 @@ export default function FridgeView({ items, loading, onSelect, onAddClick }) {
           <div className="doors">
             {DOORS.map(d => (
               <button key={d.id} className={`door ${door === d.id ? 'open' : ''}`}
-                onClick={() => setDoor(d.id)} aria-pressed={door === d.id}>
+                onClick={() => onDoorChange(d.id)} aria-pressed={door === d.id}>
                 <d.icon size={17} strokeWidth={1.8} />
                 <span>{d.label}</span>
                 <span className="door-count">
@@ -172,6 +177,13 @@ export default function FridgeView({ items, loading, onSelect, onAddClick }) {
                 appen startar, en halvsekund innan varorna dyker upp. */}
             {loading && !items.length
               ? <p className="fridge-empty">Öppnar kylskåpet…</p>
+              : error && !items.length
+              ? (
+                <div className="fridge-empty">
+                  <p style={{ marginBottom: 14 }}>Kunde inte hämta lagret.<br />{error}</p>
+                  <button className="btn-ghost btn-pill" onClick={onRetry}>Försök igen</button>
+                </div>
+              )
               : doorEmpty
               ? (
                 <p className="fridge-empty">

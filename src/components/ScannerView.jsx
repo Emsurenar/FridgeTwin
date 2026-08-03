@@ -22,12 +22,12 @@ const SCAN_DAYS = [
   { days: 30, label: '1 månad' },
 ];
 
-export default function ScannerView({ onAdd, onClose, onToast }) {
+export default function ScannerView({ defaultLocation = 'fridge', onAdd, onClose, onToast }) {
   const videoRef = useRef(null);
   const [error, setError] = useState(null);
   const [starting, setStarting] = useState(true);
   const [auto, setAuto] = useState(false);
-  const [location, setLocation] = useState('fridge');
+  const [location, setLocation] = useState(defaultLocation);
   const [manual, setManual] = useState(false);
   const [pending, setPending] = useState(null); // { barcode, status, product?, name? }
   const [flash, setFlash] = useState(false);

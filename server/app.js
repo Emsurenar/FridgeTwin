@@ -14,6 +14,40 @@ const LOCATIONS = new Set(['fridge', 'freezer', 'pantry']);
 const REMOVE_REASONS = new Set(['consumed', 'waste']);
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
+const MAX_NAME = 120;   // ryms i en ruta på hyllan; längre är ändå ingen vara
+const MAX_COUNT = 999;
+
+/*
+  Formen räcker inte som kontroll. "2026-13-45" matchar mönstret men är inget
+  datum, och en sådan vara blir värre än en utan datum: sorteringen lägger den
+  först i lagret för alltid (den är ju inte NULL) medan klienten inte kan tolka
+  den och visar ingenting alls.
+*/
+function isRealDate(iso) {
+  if (!DATE_RE.test(iso || '')) return false;
+  const [y, m, d] = iso.split('-').map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d));
+  return date.getUTCFullYear() === y && date.getUTCMonth() === m - 1 && date.getUTCDate() === d;
+}
+
+const cleanName = (v) => String(v ?? '').trim().slice(0, MAX_NAME);
+
+// Bilden hamnar i en <img src> — bara http(s) släpps in, aldrig data: eller
+// javascript:. Klienten får skicka vad den vill; servern bestämmer vad som lagras.
+function httpUrl(v) {
+  if (!v) return null;
+  try {
+    const url = new URL(String(v));
+    return url.protocol === 'https:' || url.protocol === 'http:' ? url.href.slice(0, 500) : null;
+  } catch {
+    return null;
+  }
+}
+const cleanCount = (v) => {
+  const n = Math.round(Number(v));
+  return Number.isFinite(n) ? Math.min(MAX_COUNT, Math.max(1, n)) : 1;
+};
+
 // ---- Health ----
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true, serverAi: Boolean(process.env.ANTHROPIC_API_KEY), persistent: usingTurso });
@@ -88,13 +122,13 @@ app.get('/api/products', requireKey, async (req, res) => {
 app.put('/api/product/:barcode', requireKey, async (req, res) => {
   const { barcode } = req.params;
   if (!isBarcode(barcode)) return res.status(400).json({ error: 'Ogiltig streckkod' });
-  const name = String(req.body?.name || '').trim();
+  const name = cleanName(req.body?.name);
   if (!name) return res.status(400).json({ error: 'Namn krävs' });
   const product = await saveProduct({
     barcode,
     name,
-    brand: req.body?.brand?.trim() || null,
-    quantity: req.body?.quantity?.trim() || null,
+    brand: cleanName(req.body?.brand) || null,
+    quantity: cleanName(req.body?.quantity) || null,
     imageUrl: null,
     nutriments: null,
     source: 'manual',
@@ -151,30 +185,42 @@ app.post('/api/inventory', requireKey, async (req, res) => {
     const known = await getCachedProduct(barcode);
     if (known) ({ name, brand, quantity, imageUrl } = known);
   }
-  name = String(name || '').trim();
+  name = cleanName(name);
   if (!name) return res.status(400).json({ error: 'Namn krävs' });
+  brand = cleanName(brand) || null;
+  quantity = cleanName(quantity) || null;
+  imageUrl = httpUrl(imageUrl);
 
   const location = LOCATIONS.has(body.location) ? body.location : 'fridge';
-  const count = Number.isFinite(Number(body.count)) ? Math.max(1, Math.round(Number(body.count))) : 1;
-  const expiresOn = DATE_RE.test(body.expiresOn || '') ? body.expiresOn : null;
+  const count = cleanCount(body.count);
+  if (body.expiresOn && !isRealDate(body.expiresOn)) {
+    return res.status(400).json({ error: 'Ogiltigt datum' });
+  }
+  const expiresOn = body.expiresOn || null;
 
   await ensureHousehold(req.fridgeKey);
 
-  // Skanna samma vara två gånger = två av den, inte två rader. Slås bara ihop
-  // när plats och datum också stämmer, annars vore de olika varor i praktiken.
-  if (barcode) {
-    const { rows } = await db.execute({
-      sql: `SELECT * FROM items WHERE household_id = ? AND barcode = ? AND removed_at IS NULL
-            AND location = ? AND IFNULL(expires_on, '') = IFNULL(?, '') LIMIT 1`,
-      args: [req.householdId, barcode, location, expiresOn],
+  /*
+    Samma vara två gånger = två av den, inte två rader. Streckkod när det finns
+    en, annars namnet (skiftlägesokänsligt) — annars blir "Bananer" två rutor
+    bara för att man handlade två gånger, och rutnätet fylls med dubbletter.
+
+    Plats och datum måste också stämma. Två paket med olika bäst före är i
+    praktiken olika varor: det ena kan behöva ätas i dag.
+  */
+  const { rows: dupes } = await db.execute({
+    sql: `SELECT * FROM items WHERE household_id = ? AND removed_at IS NULL
+          AND location = ? AND IFNULL(expires_on, '') = IFNULL(?, '')
+          AND ${barcode ? 'barcode = ?' : 'barcode IS NULL AND lower(name) = lower(?)'}
+          LIMIT 1`,
+    args: [req.householdId, location, expiresOn, barcode || name],
+  });
+  if (dupes[0]) {
+    const { rows: updated } = await db.execute({
+      sql: 'UPDATE items SET count = min(count + ?, ?) WHERE id = ? RETURNING *',
+      args: [count, MAX_COUNT, dupes[0].id],
     });
-    if (rows[0]) {
-      const { rows: updated } = await db.execute({
-        sql: 'UPDATE items SET count = count + ? WHERE id = ? RETURNING *',
-        args: [count, rows[0].id],
-      });
-      return res.status(200).json({ item: rowToItem(updated[0]), merged: true });
-    }
+    return res.status(200).json({ item: rowToItem(updated[0]), merged: true });
   }
 
   const id = newId();
@@ -194,27 +240,27 @@ app.patch('/api/inventory/:id', requireKey, async (req, res) => {
   const args = [];
 
   if (body.count !== undefined) {
-    const count = Math.round(Number(body.count));
-    if (!Number.isFinite(count) || count < 0) return res.status(400).json({ error: 'Ogiltigt antal' });
+    const raw = Math.round(Number(body.count));
+    if (!Number.isFinite(raw) || raw < 0) return res.status(400).json({ error: 'Ogiltigt antal' });
     // Antal 0 betyder förbrukad — samma sak som DELETE, uttryckt med stegaren.
-    if (count === 0) return removeItem(req, res, 'consumed');
-    sets.push('count = ?'); args.push(count);
+    if (raw === 0) return removeItem(req, res, 'consumed');
+    sets.push('count = ?'); args.push(Math.min(MAX_COUNT, raw));
   }
   if (body.location !== undefined) {
     if (!LOCATIONS.has(body.location)) return res.status(400).json({ error: 'Ogiltig plats' });
     sets.push('location = ?'); args.push(body.location);
   }
   if (body.expiresOn !== undefined) {
-    if (body.expiresOn !== null && !DATE_RE.test(body.expiresOn)) {
+    if (body.expiresOn !== null && body.expiresOn !== '' && !isRealDate(body.expiresOn)) {
       return res.status(400).json({ error: 'Ogiltigt datum' });
     }
-    sets.push('expires_on = ?'); args.push(body.expiresOn);
+    sets.push('expires_on = ?'); args.push(body.expiresOn || null);
   }
   if (body.openedAt !== undefined) {
     sets.push('opened_at = ?'); args.push(body.openedAt || null);
   }
   if (body.name !== undefined) {
-    const name = String(body.name).trim();
+    const name = cleanName(body.name);
     if (!name) return res.status(400).json({ error: 'Namn krävs' });
     sets.push('name = ?'); args.push(name);
   }
