@@ -246,12 +246,21 @@ input[type="date"] {
   font-size: 15px;
 }
 
+/*
+  Fältetiketten är samma sak som ett ögonbryn eller en sektionsrubrik: maskinens
+  namn på något. Appen hade tre olika behandlingar för samma roll — 0.8rem
+  brödtext i formulären, mono-versaler i skannern, mono-versaler i recepten.
+  En roll, en form.
+*/
 label {
   display: block;
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-  margin-bottom: 6px;
+  margin-bottom: 8px;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
   font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
 }
 
 /*
@@ -455,6 +464,16 @@ button:disabled:active { transform: none; }
   border-radius: 2px;
   margin: 0 auto 20px;
 }
+/* Arkets huvud speglar bandet i kön — samma monogram, samma nedräkning i mono. */
+.ark-huvud {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+}
+.ark-huvud h2 { margin-bottom: 3px; }
+.ark-varm { color: var(--varm) !important; }
+
 .sheet-cta {
   position: sticky;
   bottom: 0;
@@ -1024,6 +1043,9 @@ section:first-of-type .eyebrow { margin-top: 0; }
   color: var(--text-muted);
   margin: 8px 0 var(--space-4);
 }
+/* Texten börjar med fmtExpiry:s gemena verb ("gick ut för 2 dagar sedan").
+   Versalen hör till meningen, inte till funktionen som formaterar datum. */
+.field-hint::first-letter { text-transform: uppercase; }
 
 /* Namnförslag ur produktcachen */
 .suggestions {
@@ -1242,9 +1264,11 @@ section:first-of-type .eyebrow { margin-top: 0; }
   gap: var(--space-4);
   margin-bottom: var(--space-3);
 }
+/* Samma form som en <label>; egen klass bara för att skannerns fält inte är
+   formulärfält med etiketter utan textrader i ett kort. */
 .scan-label {
   display: block;
-  margin-bottom: 7px;
+  margin-bottom: 8px;
   font-family: var(--font-mono);
   font-size: 0.62rem;
   font-weight: 500;
@@ -1282,16 +1306,157 @@ section:first-of-type .eyebrow { margin-top: 0; }
 .scanner .segmented button { color: rgba(255, 255, 255, 0.8); }
 .scanner .segmented button.active { background: #fff; color: var(--accent-ink); }
 
-/* ---- Recept ---- */
-.recipe-card { margin-bottom: var(--space-3); }
-.recipe-steps {
-  padding-left: 18px;
-  color: var(--text-secondary);
-  font-size: 0.88rem;
-  line-height: 1.7;
+/* ---- Recept ----
+   Rätten är en slab som resten av appen, inte ett kort. Titeln får den största
+   graden på sidan: det är det enda man faktiskt väljer mellan. */
+.ratt {
+  margin: 0 calc(var(--space-5) * -1) 3px;
+  padding: var(--space-5);
+  background: var(--bg-elevated);
 }
+.ratt-huvud {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: 6px;
+}
+.ratt-titel {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+}
+/* Tiden är en avläsning, inte en rubrik. */
+.ratt-tid {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.ratt-varfor {
+  font-size: 0.9rem;
+  line-height: 1.55;
+  margin-bottom: var(--space-4);
+}
+.ratt-ingress {
+  margin-bottom: var(--space-5);
+  font-size: 0.88rem;
+}
+
+.ratt-block { margin-bottom: var(--space-4); }
+.ratt-etikett {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 9px;
+}
+.ratt-etikett-varm { color: var(--ljum-ink); }
+
+.ratt-varor { display: flex; flex-wrap: wrap; gap: 6px; }
+/*
+  Varan i rätten bär samma monogram som i kön. Det är kopplingen: man känner
+  igen sin egen spenat i förslaget, och ser på tonen om den brådskar.
+*/
+.ratt-vara {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 11px 5px 5px;
+  border-radius: 100px;
+  background: var(--bg-base);
+  font-size: 0.82rem;
+  color: var(--text-primary);
+}
+.ratt-mono {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--bg-sunken);
+  font-family: var(--font-display);
+  font-size: 0.6rem;
+  font-weight: 700;
+  font-style: normal;
+  letter-spacing: -0.03em;
+  color: var(--text-secondary);
+}
+/* Ingrediens utan träff i lagret: tom ring, ingen bokstav att visa. */
+.ratt-mono-tom {
+  background: none;
+  border: 1px dashed var(--border-hover);
+}
+.ratt-vara-utan, .ratt-vara-saknas { color: var(--text-secondary); }
+.ratt-vara-saknas {
+  padding: 6px 12px;
+  background: var(--warn-soft);
+  color: var(--ljum-ink);
+}
+
+/* Stegen numreras av listan själv och hänger i vänsterkanten, så texten
+   linjerar med resten av rätten i stället för att dras in. */
+.ratt-steg {
+  list-style: none;
+  counter-reset: steg;
+  border-top: 1px solid var(--border-color);
+  padding-top: var(--space-4);
+}
+.ratt-steg li {
+  counter-increment: steg;
+  position: relative;
+  padding-left: 26px;
+  margin-bottom: 10px;
+  font-size: 0.88rem;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+.ratt-steg li:last-child { margin-bottom: 0; }
+.ratt-steg li::before {
+  content: counter(steg);
+  position: absolute;
+  left: 0;
+  top: 1px;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
 /* Fyra segment ska rymmas på en 320px-skärm utan att bryta rad. */
 .meal-picker button { font-size: 0.78rem; padding: 9px 2px; }
+/* Måltidsväljaren i den mörka panelen: nedsänkt spår, ljus vald knapp. */
+.instrument .meal-picker {
+  background: rgba(255, 255, 255, 0.08);
+  margin-bottom: 10px;
+}
+.instrument .meal-picker button { color: rgba(255, 255, 255, 0.7); }
+.instrument .meal-picker button.active {
+  background: #fff;
+  color: var(--natt);
+  box-shadow: none;
+}
+.instrument-cta {
+  margin-top: 10px;
+  background: var(--is);
+  color: #fff;
+}
+.instrument-cta:active { background: #1287A0; }
+.instrument-cta:disabled { opacity: 0.35; }
+.instrument-not {
+  margin-top: 10px;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.6);
+}
 
 /*
   Receptloggen. Varje körning är en egen post med sin måltid, sitt önskemål och

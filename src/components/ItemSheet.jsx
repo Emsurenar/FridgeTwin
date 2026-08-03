@@ -1,9 +1,12 @@
 import { useState } from 'react';
 import { Trash2, Check, Package } from 'lucide-react';
-import { fmtExpiry } from '../lib/fmt';
+import { fmtBandExpiry, monogram } from '../lib/fmt';
+import { expiryState } from '../lib/expiry';
 import { Stepper, LocationPicker, ExpiryPicker } from './Fields';
 
 export default function ItemSheet({ item, aiOk, onClose, onPatch, onRemove, onToast }) {
+  const state = expiryState(item.expiresOn);
+  const mark = monogram(item.name);
   const [count, setCount] = useState(item.count);
   const [location, setLocation] = useState(item.location);
   const [expiresOn, setExpiresOn] = useState(item.expiresOn || '');
@@ -24,17 +27,23 @@ export default function ItemSheet({ item, aiOk, onClose, onPatch, onRemove, onTo
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-sheet" onClick={e => e.stopPropagation()}>
-        <div className="flex-row" style={{ marginBottom: 'var(--space-5)' }}>
-          <div className="thumb" style={{ width: 56, height: 56 }}>
+        {/* Samma huvud som bandet i kön: monogram, namn, nedräkning i mono.
+            Kortet ska kännas som raden man just tryckte på, inte som ett
+            formulär man landat i. */}
+        <div className="ark-huvud">
+          <div className={`band-img img-${state}`} style={{ width: 52, height: 52 }}>
             {item.imageUrl
-              ? <img src={item.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-              : <Package size={22} />}
+              ? <img src={item.imageUrl} alt="" />
+              : mark === '?'
+              ? <Package size={22} strokeWidth={1.4} />
+              : <span className="band-mono" style={{ fontSize: 18 }}>{mark}</span>}
           </div>
           <div className="truncate">
             <h2 className="truncate">{item.name}</h2>
-            <p className="truncate" style={{ fontSize: '0.8rem' }}>
-              {[item.brand, item.quantity, fmtExpiry(item.expiresOn)].filter(Boolean).join(' · ') || 'Egen post'}
-            </p>
+            <span className={`band-when ${state === 'expired' || state === 'today' ? 'ark-varm' : ''}`}>
+              {[fmtBandExpiry(item.expiresOn), item.brand, item.quantity]
+                .filter(Boolean).join(' · ')}
+            </span>
           </div>
         </div>
 

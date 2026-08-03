@@ -88,10 +88,12 @@ export function ExpiryPicker({ value, onChange, aiOk, onToast }) {
         )}
       </div>
 
+      {/* fmtExpiry bär redan verbet ("går ut i morgon", "gick ut för 2 dagar
+          sedan"), så ett inledande "Går ut" blev dubbelt. Versalen sätts i CSS. */}
       <p className="field-hint">
         {value
-          ? <>Går ut {fmtExpiry(value)}. <button className="link-btn" onClick={() => onChange('')}>Ta bort datum</button></>
-          : 'Inget datum satt — varan hamnar längst ner i kylskåpet.'}
+          ? <>{fmtExpiry(value)}. <button className="link-btn" onClick={() => onChange('')}>Ta bort datum</button></>
+          : 'Utan datum hamnar varan under Utan datum, och kan inte påminna om sig själv.'}
       </p>
     </>
   );
