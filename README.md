@@ -37,6 +37,30 @@ Skanning, produktuppslag och lagring kostar ingenting. Bara de tre AI-funktioner
 (fotoigenkänning, datumläsning, recept) drar tokens — sätt en **spendgräns på
 API-nyckeln hos Anthropic**, det är det enda som faktiskt begränsar kostnaden.
 
+## Deploya på Vercel
+
+1. **Importera repot** på [vercel.com/new](https://vercel.com/new). Vite känns igen automatiskt (`npm run build` → `dist/`), och `api/index.js` blir en serverless-funktion via `vercel.json`.
+2. **Skaffa en databas** — utan den försvinner lagret vid varje omstart. På [turso.tech](https://turso.tech) (gratisnivå):
+   ```bash
+   turso db create fridgetwin
+   turso db show fridgetwin --url        # → libsql://...turso.io
+   turso db tokens create fridgetwin     # → token
+   ```
+3. **Miljövariabler** i Vercel (*Settings → Environment Variables*):
+
+   | Variabel | Värde | Krävs |
+   |---|---|---|
+   | `TURSO_URL` | `libsql://…turso.io` | ja, annars tappas lagret |
+   | `TURSO_TOKEN` | token från steg 2 | ja |
+   | `ANTHROPIC_API_KEY` | `sk-ant-…` | nej — utan den används klientnyckeln |
+   | `ALLOWED_ORIGINS` | `https://din-app.vercel.app` | nej, men rekommenderas om AI-nyckeln ligger på servern |
+4. **Deploya om** efter att variablerna satts — de läses vid build, inte i efterhand.
+5. Öppna appen, gå till *Inställningar* och kontrollera att det **inte** står någon varning om `TURSO_URL`. `/api/health` svarar `persistent: true` när allt sitter.
+
+Schemat skapas automatiskt vid första anropet, så det finns inget migreringssteg.
+
+Lägg till appen på hemskärmen (*Dela → Lägg till på hemskärmen*) — då körs den i helskärm, och kameran fungerar eftersom Vercel serverar över HTTPS.
+
 ### Databas i produktion
 
 Sätt `TURSO_URL` (och `TURSO_TOKEN`) så flyttar lagret till Turso. Utan dem
