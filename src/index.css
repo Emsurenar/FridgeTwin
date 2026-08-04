@@ -1079,6 +1079,34 @@ label {
   font-weight: 600;
 }
 
+/* ---- Betyg ----
+   Sist i rätten, avskilt med en linje: man sätter det efter att ha lagat, inte
+   när man läser. Texten säger vad betyget gör, annars ser stjärnorna ut som
+   pynt och ingen rör dem. */
+.betyg {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--linje);
+}
+.betyg-text { font-size: 0.85rem; color: var(--dampad); }
+.betyg-stjarnor { display: flex; gap: 2px; margin-left: auto; }
+.stjarna {
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--linje-stark);
+}
+.stjarna:active { background: var(--sank); }
+.stjarna-pa { color: #C8951C; }
+
 .meal-picker { margin-bottom: 14px; }
 .meal-picker button { font-size: 0.85rem; padding: 9px 2px; }
 

@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { ChefHat, Loader2, X, Package } from 'lucide-react';
+import { ChefHat, Loader2, X, Package, Star } from 'lucide-react';
 import { MEALS, mealLabel } from '../lib/ai';
 import { expiryState, isUrgent } from '../lib/expiry';
 import { fmtLogTime } from '../lib/fmt';
 import { matchUses, matchCount } from '../lib/recipes';
+import { getRating } from '../lib/ratings';
 
 /*
   Förslagen hämtas bara när man ber om dem — ett automatiskt anrop vid varje
@@ -49,7 +50,36 @@ function Anvander({ uses, items }) {
   );
 }
 
-function Ratt({ recipe, items }) {
+/*
+  Betyget på en lagad rätt.
+
+  Poängen är inte att samla stjärnor utan att slippa få tillbaka det man inte
+  tycker om: betygen går in i nästa prompt. Därför står det utskrivet vad de
+  gör — annars ser det ut som pynt och ingen sätter något.
+
+  Samma stjärna igen nollställer. Ett felsatt betyg som inte går att ta tillbaka
+  hade styrt förslagen för alltid.
+*/
+function Betyg({ title, value, onRate }) {
+  return (
+    <div className="betyg">
+      <span className="betyg-text">
+        {value ? 'Ditt betyg styr kommande förslag' : 'Lagade du den? Sätt betyg'}
+      </span>
+      <div className="betyg-stjarnor" role="group" aria-label={`Betygsätt ${title}`}>
+        {[1, 2, 3, 4, 5].map(n => (
+          <button key={n} className={`stjarna ${n <= value ? 'stjarna-pa' : ''}`}
+            aria-label={`${n} av 5`} aria-pressed={n === value}
+            onClick={() => onRate(title, n)}>
+            <Star size={19} fill={n <= value ? 'currentColor' : 'none'} strokeWidth={1.8} />
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Ratt({ recipe, items, betyg, onRate }) {
   return (
     <article className="ratt">
       <div className="ratt-huvud">
@@ -74,11 +104,13 @@ function Ratt({ recipe, items }) {
       <ol className="ratt-steg">
         {recipe.steps?.map((s, j) => <li key={j}>{s}</li>)}
       </ol>
+
+      <Betyg title={recipe.title} value={betyg} onRate={onRate} />
     </article>
   );
 }
 
-export default function RecipesView({ items, aiOk, busy, log, onRun, onGoToSettings, onForget, onClear }) {
+export default function RecipesView({ items, aiOk, busy, log, ratings, onRate, onRun, onGoToSettings, onForget, onClear }) {
   const [meal, setMeal] = useState('any');
   const [request, setRequest] = useState('');
 
@@ -162,7 +194,10 @@ export default function RecipesView({ items, aiOk, busy, log, onRun, onGoToSetti
             </button>
           </div>
           {entry.request && <p className="log-wish">”{entry.request}”</p>}
-          {entry.recipes.map((r, i) => <Ratt key={i} recipe={r} items={items} />)}
+          {entry.recipes.map((r, i) => (
+            <Ratt key={i} recipe={r} items={items}
+              betyg={getRating(ratings, r.title)} onRate={onRate} />
+          ))}
         </section>
       ))}
 

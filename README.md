@@ -10,11 +10,13 @@ du kan laga på det som faktiskt finns hemma.
 - **Tid, inte plats** — allt som brådskar i kyl, frys och skafferi står i samma lista, grupperat efter hur bråttom det är: *Ät nu*, *Den här veckan*, *Utan datum*, *Håller sig*. Utrymmet är en upplysning på raden, inte ett läge man växlar mellan. Överst säger appen läget i en mening: *"1 vara har gått ut."*
 - **Streckkodsskanner** — kontinuerlig avläsning ur kameraströmmen (EAN-13/8, UPC-A/E, ITF). Kameran fortsätter efter varje träff, så en hel matkasse kan tömmas i ett svep. Autoläge lägger in varan direkt.
 - **Redan hemma** — vid en träff visar skannern om varan redan står inne, och var. Skanna en tom förpackning så räknas den ner; sista exemplaret markeras som slut. Den som går ut först räknas ner, för det är den man äter upp härnäst.
+- **Hoppa över utan att lämna kameran** — skannade du fel vara stänger *Hoppa över* kortet och låter kameran rulla vidare. Koden tystas i femton sekunder, annars hade den dykt upp igen direkt medan telefonen fortfarande pekar på förpackningen. Plats (kyl/frys/skafferi) syns hela tiden och går att byta med kortet öppet — valet gäller vidare för nästa vara.
 - **Produktuppslag** — namn, märke, mängd och bild från [Open Food Facts](https://world.openfoodfacts.org). Okänd streckkod? Namnge varan en gång, så känns den igen nästa gång.
 - **En vara, ett formulär** — namn (med förslag ur allt appen redan sett), antal, plats och bäst före på samma skärm. Snabbvalen för datum finns även i skannern, så det går att sätta redan vid inläsningen.
 - **Bäst före** — snabbval, datumfält, eller fota datumet på förpackningen och låt Claude läsa det.
 - **AI-igenkänning** — fota lösvikt eller en hel hylla; Claude föreslår varor som du bockar av innan de läggs in.
 - **Receptförslag** — tre rätter utifrån lagret, med extra vikt vid det som snart blir dåligt. Välj måltid (frukost, lunch, middag) och skriv ett eget önskemål — *vegetariskt och snabbt*. Körningen fortsätter medan du går till kylskåpet, och förslagen sparas i en logg som överlever både flikbyte och omladdning.
+- **Betyg som styr** — sätt 1–5 stjärnor på en lagad rätt. Ytterlägena följer med i nästa prompt: modellen undviker det du gett lågt betyg och lutar åt det du gillat, utan att upprepa en högt betygsatt rätt rakt av. Betygen bor i en egen lagringspost så de överlever att receptloggen rensas.
 - **Delat hushåll** — lagret bor på servern. Dela nyckeln (länk eller QR-kod) så ser hela hushållet samma kylskåp.
 - **Svinnstatistik** — borttagna varor raderas inte, de markeras som förbrukade eller slängda.
 

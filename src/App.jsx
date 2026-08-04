@@ -4,6 +4,7 @@ import * as api from './lib/api';
 import { checkServerAi, aiReady, suggestRecipes } from './lib/ai';
 import { loadLog, addEntry, removeEntry, clearLog, newEntryId } from './lib/recipeLog';
 import { loadMirror, saveMirror, clearMirror, missingFromServer } from './lib/mirror';
+import { loadRatings, setRating } from './lib/ratings';
 import FridgeView from './components/FridgeView';
 import RecipesView from './components/RecipesView';
 import SettingsView from './components/SettingsView';
@@ -40,6 +41,9 @@ export default function App() {
   const [recipeLog, setRecipeLog] = useState(loadLog);
   const [recipeBusy, setRecipeBusy] = useState(false);
   const [recipesUnseen, setRecipesUnseen] = useState(false);
+  // Betygen bor här av samma skäl som loggen: RecipesView avmonteras vid varje
+  // flikbyte, och de ska med i nästa promptanrop oavsett var man står.
+  const [ratings, setRatings] = useState(loadRatings);
   const toastTimer = useRef(null);
   const tabRef = useRef(tab);
   tabRef.current = tab;
@@ -262,7 +266,7 @@ export default function App() {
     recipesRunning.current = true;
     setRecipeBusy(true);
     try {
-      const recipes = await suggestRecipes(items, { meal, request });
+      const recipes = await suggestRecipes(items, { meal, request, ratings });
       if (!recipes.length) return showToast('Inga förslag den här gången', 'danger');
       setRecipeLog(prev => addEntry(prev, {
         id: newEntryId(),
@@ -289,7 +293,7 @@ export default function App() {
       recipesRunning.current = false;
       setRecipeBusy(false);
     }
-  }, [items, showToast]);
+  }, [items, ratings, showToast]);
 
   const handleKeyChanged = (reset = false) => {
     if (reset) api.resetKey();
@@ -338,6 +342,8 @@ export default function App() {
         )}
         {tab === 'recipes' && (
           <RecipesView items={items} aiOk={aiOk} busy={recipeBusy} log={recipeLog}
+            ratings={ratings}
+            onRate={(title, n) => setRatings(prev => setRating(prev, title, n))}
             onRun={runRecipes} onGoToSettings={() => setTab('settings')}
             onForget={(id) => setRecipeLog(prev => removeEntry(prev, id))}
             onClear={() => setRecipeLog(clearLog())} />

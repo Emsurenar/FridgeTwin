@@ -78,7 +78,29 @@ export default function ScannerView({ defaultLocation = 'fridge', items = [], ai
     }
   };
 
+  /*
+    Överhoppade koder tystas en stund.
+
+    scanLoop har en avkylning på ett par sekunder så att man kan hålla kvar
+    kameran utan att lägga in tio paket smör — men den är redan förbrukad när
+    man hunnit läsa kortet och tryckt "Hoppa över". Utan det här dök samma vara
+    upp igen direkt, och knappen betydde ingenting. Femton sekunder räcker för
+    att flytta telefonen till nästa förpackning.
+  */
+  const overhoppade = useRef(new Map());
+  const SKIP_MS = 15000;
+
+  const hoppaOver = () => {
+    if (pending?.barcode) overhoppade.current.set(pending.barcode, Date.now());
+    setPending(null);
+    resetPerItem();
+  };
+
   const handleDetect = async (barcode) => {
+    const skippad = overhoppade.current.get(barcode);
+    if (skippad && Date.now() - skippad < SKIP_MS) return;
+    if (skippad) overhoppade.current.delete(barcode);
+
     /*
       Låt den vara som redan ligger i kortet stå kvar tills den hanterats.
 
@@ -213,8 +235,14 @@ export default function ScannerView({ defaultLocation = 'fridge', items = [], ai
             </div>
           )}
 
-          {/* Var varan hamnar — bestäms en gång och gäller allt man skannar in */}
-          {!pending && !manual && !error && (
+          {/*
+            Var varan hamnar. Ligger kvar synlig även när ett produktkort är
+            öppet — tidigare doldes den, så för att flytta en vara till frysen
+            fick man lägga in den i kylen och rätta till det efteråt. Valet
+            gäller vidare för nästa vara, så en hel matkasse till frysen är ett
+            tryck och inte ett per förpackning.
+          */}
+          {!manual && !error && (
             <div className="segmented" style={{ margin: 0 }}>
               {LOCATIONS.map(l => (
                 <button key={l.id} className={location === l.id ? 'active' : ''}
@@ -229,7 +257,8 @@ export default function ScannerView({ defaultLocation = 'fridge', items = [], ai
           {pending?.status === 'loading' && (
             <div className="scan-toast">
               <Loader2 size={18} className="spin" />
-              <span className="mono">{pending.barcode}</span>
+              <span className="truncate" style={{ flex: 1 }}>{pending.barcode}</span>
+              <button className="btn-ghost btn-pill" onClick={hoppaOver}>Avbryt</button>
             </div>
           )}
 
@@ -283,9 +312,17 @@ export default function ScannerView({ defaultLocation = 'fridge', items = [], ai
                 </p>
               )}
 
-              <button onClick={addFound}>
-                Lägg till{count > 1 ? ` ${count} st` : ''}
-              </button>
+              {/* Att ångra sig får inte kosta hela kameran. Tidigare fanns bara
+                  "Lägg till" — skannade man fel vara var enda vägen ut att
+                  stänga skannern och öppna den igen. */}
+              <div className="grid-2">
+                <button className="btn-ghost" onClick={hoppaOver}>
+                  Hoppa över
+                </button>
+                <button onClick={addFound}>
+                  Lägg till{count > 1 ? ` ${count} st` : ''}
+                </button>
+              </div>
             </div>
           )}
 
@@ -298,7 +335,7 @@ export default function ScannerView({ defaultLocation = 'fridge', items = [], ai
                 onChange={e => setPending(p => ({ ...p, name: e.target.value }))}
                 onKeyDown={e => e.key === 'Enter' && saveUnknown()} />
               <div className="grid-2">
-                <button className="btn-ghost" onClick={() => setPending(null)}>Hoppa över</button>
+                <button className="btn-ghost" onClick={hoppaOver}>Hoppa över</button>
                 <button onClick={saveUnknown} disabled={!pending.name.trim()}>Spara</button>
               </div>
             </div>
