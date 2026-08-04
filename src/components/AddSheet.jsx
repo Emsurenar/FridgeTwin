@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Package, ScanLine, Check, Camera } from 'lucide-react';
 import { searchProducts } from '../lib/api';
 import { Stepper, LocationPicker, ExpiryPicker } from './Fields';
+import Sheet from './Sheet';
 
 /*
   Ett formulär för hela varan: namn, antal, plats och bäst före på samma skärm,
@@ -65,9 +66,8 @@ export default function AddSheet({ defaultLocation = 'fridge', aiOk, onClose, on
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-sheet" onClick={e => e.stopPropagation()}>
-        <div className="flex-between" style={{ marginBottom: 'var(--space-4)' }}>
+    <Sheet title={'Lägg in en vara'} onClose={onClose}>
+        <div className="flex-between" style={{ marginBottom: 16 }}>
           <h2>Lägg in en vara</h2>
           {/* De tre vägarna in i kylskåpet sitter ihop: skriv, skanna eller fota */}
           <div className="flex-row" style={{ gap: 6 }}>
@@ -119,7 +119,7 @@ export default function AddSheet({ defaultLocation = 'fridge', aiOk, onClose, on
           </div>
         )}
 
-        <div className="grid-2" style={{ alignItems: 'end', marginBottom: 'var(--space-4)' }}>
+        <div className="grid-2" style={{ alignItems: 'end', marginBottom: 16 }}>
           <div>
             <label>Antal</label>
             <Stepper value={count} onChange={setCount} />
@@ -135,7 +135,6 @@ export default function AddSheet({ defaultLocation = 'fridge', aiOk, onClose, on
         <button className="sheet-cta" onClick={save} disabled={!name.trim() || saving}>
           {saving ? 'Lägger in…' : 'Lägg in'}
         </button>
-      </div>
-    </div>
+    </Sheet>
   );
 }

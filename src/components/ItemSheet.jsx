@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { Trash2, Check, Package } from 'lucide-react';
-import { fmtBandExpiry, monogram } from '../lib/fmt';
+import { fmtBandExpiry } from '../lib/fmt';
 import { expiryState } from '../lib/expiry';
 import { Stepper, LocationPicker, ExpiryPicker } from './Fields';
+import Sheet from './Sheet';
 
 export default function ItemSheet({ item, aiOk, onClose, onPatch, onRemove, onToast }) {
   const state = expiryState(item.expiresOn);
-  const mark = monogram(item.name);
   const [count, setCount] = useState(item.count);
   const [location, setLocation] = useState(item.location);
   const [expiresOn, setExpiresOn] = useState(item.expiresOn || '');
@@ -25,22 +25,19 @@ export default function ItemSheet({ item, aiOk, onClose, onPatch, onRemove, onTo
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-sheet" onClick={e => e.stopPropagation()}>
-        {/* Samma huvud som bandet i kön: monogram, namn, nedräkning i mono.
-            Kortet ska kännas som raden man just tryckte på, inte som ett
-            formulär man landat i. */}
+    <Sheet title={item.name} onClose={onClose}>
+        {/* Samma huvud som raden man tryckte på: bild, namn, nedräkning.
+            Kortet ska kännas som en fortsättning, inte som ett formulär man
+            landat i. */}
         <div className="ark-huvud">
-          <div className={`band-img img-${state}`} style={{ width: 52, height: 52 }}>
+          <div className="rad-bild" style={{ width: 52, height: 52 }}>
             {item.imageUrl
               ? <img src={item.imageUrl} alt="" />
-              : mark === '?'
-              ? <Package size={22} strokeWidth={1.4} />
-              : <span className="band-mono" style={{ fontSize: 18 }}>{mark}</span>}
+              : <Package size={21} strokeWidth={1.5} />}
           </div>
           <div className="truncate">
             <h2 className="truncate">{item.name}</h2>
-            <span className={`band-when ${state === 'expired' || state === 'today' ? 'ark-varm' : ''}`}>
+            <span className={`ark-under ${state === 'expired' || state === 'today' ? 'ark-varm' : ''}`}>
               {[fmtBandExpiry(item.expiresOn), item.brand, item.quantity]
                 .filter(Boolean).join(' · ')}
             </span>
@@ -48,7 +45,7 @@ export default function ItemSheet({ item, aiOk, onClose, onPatch, onRemove, onTo
         </div>
 
         <label>Antal</label>
-        <div style={{ marginBottom: 'var(--space-4)' }}>
+        <div style={{ marginBottom: 16 }}>
           <Stepper value={count} onChange={setCount} />
         </div>
 
@@ -60,7 +57,7 @@ export default function ItemSheet({ item, aiOk, onClose, onPatch, onRemove, onTo
 
         {/* Att varan är slut eller slängd är inte en ändring man sparar — det
             är ett beslut, och det tas direkt. */}
-        <div className="grid-2" style={{ margin: 'var(--space-5) 0 0' }}>
+        <div className="grid-2" style={{ margin: '20px 0 0' }}>
           <button className="btn-ghost" onClick={() => onRemove(item, 'waste')}>
             <Trash2 size={16} /> Slängd
           </button>
@@ -72,7 +69,6 @@ export default function ItemSheet({ item, aiOk, onClose, onPatch, onRemove, onTo
         <button className="sheet-cta" onClick={save} disabled={!dirty || saving}>
           {saving ? 'Sparar…' : dirty ? 'Spara' : 'Inget ändrat'}
         </button>
-      </div>
-    </div>
+    </Sheet>
   );
 }

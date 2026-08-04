@@ -4,6 +4,7 @@ import { identifyItems } from '../lib/ai';
 import { addDays, toIsoDate } from '../lib/expiry';
 import { fmtExpiry, LOCATIONS, locationLabel } from '../lib/fmt';
 import PhotoButton from './PhotoButton';
+import Sheet from './Sheet';
 
 /*
   AI-igenkänning för varor utan streckkod — lösvikt, en hel hylla, en fruktskål.
@@ -55,10 +56,9 @@ export default function PhotoIdentifySheet({ onClose, onAddMany, onToast }) {
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-sheet" onClick={e => e.stopPropagation()}>
+    <Sheet title={'Identifiera med foto'} onClose={onClose}>
         <h2 style={{ marginBottom: 4 }}>Identifiera med foto</h2>
-        <p style={{ marginBottom: 'var(--space-5)' }}>
+        <p style={{ marginBottom: 20 }}>
           Fota lösvikt eller en hel hylla — Claude föreslår vad det är, du bockar av.
         </p>
 
@@ -100,7 +100,6 @@ export default function PhotoIdentifySheet({ onClose, onAddMany, onToast }) {
             </button>
           </>
         )}
-      </div>
-    </div>
+    </Sheet>
   );
 }

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { ChefHat, Loader2, X, Package } from 'lucide-react';
 import { MEALS, mealLabel } from '../lib/ai';
 import { expiryState, isUrgent } from '../lib/expiry';
-import { fmtLogTime, monogram } from '../lib/fmt';
+import { fmtLogTime } from '../lib/fmt';
 import { matchUses, matchCount } from '../lib/recipes';
 
 /*
@@ -17,7 +17,7 @@ import { matchUses, matchCount } from '../lib/recipes';
   Vilka av dina varor rätten tömmer.
 
   Modellen svarar med ingrediensnamn i fritext; matchningen parar ihop dem med
-  lagret så att de som faktiskt står hemma visas med samma monogram som i kön.
+  lagret så att de som faktiskt står hemma visas med sin egen produktbild.
   Rätten blir därmed en hylla som töms i stället för en lista med ord — och man
   ser direkt om ett förslag rör den mat som brådskar eller bara låter gott.
 */
@@ -31,14 +31,18 @@ function Anvander({ uses, items }) {
       <h4 className="ratt-etikett">{hemma ? 'Tömmer ur kylskåpet' : 'Använder'}</h4>
       <div className="ratt-varor">
         {matchade.map(({ label, item }, i) => (
-          <span key={i} className={`ratt-vara ${item ? '' : 'ratt-vara-utan'}`}>
-            {item ? (
-              <i className={`ratt-mono img-${expiryState(item.expiresOn)}`}>
-                {monogram(item.name) === '?' ? <Package size={12} /> : monogram(item.name)}
-              </i>
-            ) : <i className="ratt-mono ratt-mono-tom" aria-hidden="true" />}
-            {item ? item.name : label}
-          </span>
+          item ? (
+            <span key={i} className="ratt-vara">
+              <span className="ratt-bild">
+                {item.imageUrl
+                  ? <img src={item.imageUrl} alt="" loading="lazy" />
+                  : <Package size={12} strokeWidth={1.6} />}
+              </span>
+              {item.name}
+            </span>
+          ) : (
+            <span key={i} className="ratt-vara ratt-vara-utan">{label}</span>
+          )
         ))}
       </div>
     </div>
@@ -86,18 +90,31 @@ export default function RecipesView({ items, aiOk, busy, log, onRun, onGoToSetti
 
   return (
     <>
-      {/*
-        Samma mörka instrument som i kylskåpsvyn, men med den här sidans
-        kontroller. Varje vy har ett — det är appens systematik: svart block =
-        det man styr med, ljus yta = det man tittar på.
-      */}
-      {aiOk && (
-        <div className="instrument">
-          <div className="instrument-head">
-            <span className="instrument-date">Föreslå mat</span>
-          </div>
+      <header className="sidhuvud">
+        <h1>Vad kan jag laga?</h1>
+        <p>
+          {!items.length
+            ? 'Lagret är tomt — skanna in något först.'
+            : urgent.length
+            ? `Förslagen prioriterar ${urgent.map(i => i.name).slice(0, 3).join(', ')}.`
+            : 'Förslagen utgår från vad som finns hemma just nu.'}
+        </p>
+      </header>
 
-          <div className="segmented meal-picker" role="group" aria-label="Måltid">
+      {!aiOk && (
+        <div className="panel">
+          <p style={{ marginBottom: 14 }}>Receptförslag kräver en Anthropic-nyckel.</p>
+          <button className="btn-ghost" onClick={onGoToSettings}>Öppna inställningar</button>
+        </div>
+      )}
+
+      {/* Kontrollerna i ett vanligt kort. Den mörka instrumentpanelen är borta
+          ur hela appen — en svart låda överst i en matapp läste som ett
+          utvecklarverktyg. */}
+      {aiOk && (
+        <div className="panel">
+          <label id="meal-label">Måltid</label>
+          <div className="segmented meal-picker" role="group" aria-labelledby="meal-label">
             {MEALS.map(m => (
               <button key={m.id} className={meal === m.id ? 'active' : ''}
                 onClick={() => setMeal(m.id)} aria-pressed={meal === m.id}>
@@ -106,13 +123,13 @@ export default function RecipesView({ items, aiOk, busy, log, onRun, onGoToSetti
             ))}
           </div>
 
-          <input className="instrument-sok" value={request} maxLength={400}
-            aria-label="Något särskilt?"
-            placeholder="Något särskilt? t.ex. vegetariskt och snabbt"
+          <label htmlFor="recipe-wish">Något särskilt?</label>
+          <input id="recipe-wish" value={request} maxLength={400}
+            placeholder="t.ex. vegetariskt och snabbt"
             onChange={e => setRequest(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && !busy && items.length && run()} />
 
-          <button className="instrument-cta" onClick={run} disabled={busy || !items.length}>
+          <button style={{ marginTop: 16 }} onClick={run} disabled={busy || !items.length}>
             {busy ? <Loader2 size={17} className="spin" /> : <ChefHat size={17} />}
             {busy ? 'Tänker…' : 'Föreslå rätter'}
           </button>
@@ -120,33 +137,11 @@ export default function RecipesView({ items, aiOk, busy, log, onRun, onGoToSetti
           {/* Att det går att gå härifrån är hela poängen — säg det, annars står
               man kvar och väntar på en snurra. */}
           {busy && (
-            <p className="instrument-not">
+            <p style={{ marginTop: 12, fontSize: '0.85rem' }}>
               Du kan gå till kylskåpet under tiden. Förslagen dyker upp här när de är klara.
             </p>
           )}
         </div>
-      )}
-
-      {!aiOk && (
-        <>
-          <header className="sidhuvud">
-            <h1>Vad kan jag laga?</h1>
-          </header>
-          <div className="panel">
-            <p style={{ marginBottom: 12 }}>Receptförslag kräver en Anthropic-nyckel.</p>
-            <button className="btn-ghost" onClick={onGoToSettings}>Öppna inställningar</button>
-          </div>
-        </>
-      )}
-
-      {aiOk && (
-        <p className="ratt-ingress">
-          {!items.length
-            ? 'Lagret är tomt — skanna in något först.'
-            : urgent.length
-            ? `Förslagen prioriterar ${urgent.map(i => i.name).slice(0, 3).join(', ')}.`
-            : 'Förslagen utgår från vad som finns hemma just nu.'}
-        </p>
       )}
 
       {aiOk && !log.length && !busy && items.length > 0 && (
@@ -172,7 +167,7 @@ export default function RecipesView({ items, aiOk, busy, log, onRun, onGoToSetti
       ))}
 
       {log.length > 1 && (
-        <button className="btn-ghost" style={{ marginTop: 'var(--space-5)' }}
+        <button className="btn-ghost" style={{ marginTop: 20 }}
           onClick={() => { if (confirm('Rensa hela receptloggen?')) onClear(); }}>
           Rensa loggen
         </button>

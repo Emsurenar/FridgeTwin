@@ -217,20 +217,6 @@ export default function App() {
   };
 
   /*
-    Frys in är räddningen, inte en flytt. De tre utrymmena är egentligen tre
-    hastigheter på förfall, och att lägga något i frysen är att pausa klockan —
-    därför är det en knapp på bandet och inte en mapp man navigerar till.
-  */
-  const handleFreeze = async (item) => {
-    try {
-      upsert(await api.patchItem(item.id, { location: 'freezer' }));
-      showToast(`${item.name} ligger i frysen nu`);
-    } catch (e) {
-      if (!dropIfGone(item.id, e)) showToast(e.message, 'danger');
-    }
-  };
-
-  /*
     Att skanna en tom förpackning är samma sak som att säga "den är uppäten".
     Sista exemplaret tas bort med ångra-toasten; är det fler kvar räknas det
     bara ner, för då är varan inte slut.
@@ -348,8 +334,7 @@ export default function App() {
 
         {tab === 'inventory' && (
           <FridgeView items={items} loading={loading} error={loadError} onRetry={load}
-            onSelect={setSelected} onAddClick={() => setAddOpen(true)}
-            onRemove={handleRemove} onFreeze={handleFreeze} />
+            onSelect={setSelected} onAddClick={() => setAddOpen(true)} />
         )}
         {tab === 'recipes' && (
           <RecipesView items={items} aiOk={aiOk} busy={recipeBusy} log={recipeLog}

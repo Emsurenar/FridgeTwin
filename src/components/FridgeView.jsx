@@ -1,133 +1,76 @@
 import { useMemo, useState } from 'react';
-import { Package, Search, Plus, X, Snowflake, Check, Trash2, CalendarPlus } from 'lucide-react';
+import { Package, Search, Plus, X, CalendarPlus } from 'lucide-react';
 import { byExpiry, expiryState } from '../lib/expiry';
 import { queueSections } from '../lib/rail';
-import { fmtBandExpiry, fmtToday, locationLabel, monogram } from '../lib/fmt';
-import Rail from './Rail';
+import { lagesText } from '../lib/lage';
+import { fmtBandExpiry, fmtToday, locationLabel } from '../lib/fmt';
 
 /*
-  Kön, inte skåpet.
+  Kylskåpet.
 
-  Den gamla vyn ritade en möbel: tre luckor som segmentkontroll, en låda med
-  hyllor, och ett rutnät av lika stora rutor. Den kostade ~290 px krom som aldrig
-  ändrades, och den kunde inte svara på appens viktigaste fråga — vad brådskar? —
-  utan att man öppnade en lucka i taget och la ihop svaret i huvudet.
+  Tid är ordningsprincipen, inte plats: allt som brådskar i kyl, frys och
+  skafferi står i samma lista, och utrymmet är en upplysning på raden. Det var
+  rätt i förra omgången och står kvar.
 
-  Nu är den lodräta axeln tid och plats bara en bokstav på raden. Allt som
-  brådskar i kyl, frys och skafferi står i samma lista, och skärmytan fördelas
-  efter hur mycket varan förtjänar: ett passerat band är 112 px med två beslut,
-  en vara som håller sig är en 30 px bricka. Över sju dagar syns inte i kön alls.
+  Det som ändrats är tonen. Vyn var en instrumentpanel — svart block, staplar,
+  spärrade versaler i monospace, tre ikonknappar per rad. Den läste som ett
+  verktyg för någon som analyserar sitt kylskåp, inte som något man plockar upp
+  i köket. Nu: en mening som säger läget, och lugna kort under.
+
+  Besluten flyttade till varans kort. Femton grå ikoner nedför en lista var
+  brus, och "slängd" respektive "slut" förtjänar riktiga etiketter — det är
+  skillnaden mellan svinnstatistik som stämmer och en som inte gör det.
 */
 
-/*
-  Bild när det finns en, annars monogram.
-
-  Brickan tonas efter brådska. Tidigare låg brådskan i en 3px färgstapel längst
-  ut i vänsterkanten — en grov markör som fick kön att se ut som en
-  uppgiftslista. Nu bär brickan informationen i stället, och den var ändå det
-  enda elementet på raden som inte gjorde något.
-*/
-function Thumb({ item, size }) {
-  const mark = monogram(item.name);
-  const state = expiryState(item.expiresOn);
+function Bild({ item, size = 46 }) {
   return (
-    <div className={`band-img img-${state}`} style={{ width: size, height: size }}>
+    <div className="rad-bild" style={{ width: size, height: size }}>
       {item.imageUrl
         ? <img src={item.imageUrl} alt="" loading="lazy" />
-        : mark === '?'
-        ? <Package size={Math.round(size * 0.42)} strokeWidth={1.4} />
-        : <span className="band-mono" style={{ fontSize: Math.round(size * 0.34) }}>{mark}</span>}
+        : <Package size={Math.round(size * 0.4)} strokeWidth={1.5} />}
     </div>
   );
 }
 
-/*
-  Underraden: nedräkning, antal och plats på en rad i stället för i var sin ruta
-  på höjden. Platsen skrivs ut — "Kylen" läses direkt medan ett K i en grå ruta
-  är en kod man måste lära sig, och den rutan var dessutom egen visuell möbel.
-*/
-function Under({ item, when }) {
-  const bitar = [];
-  if (when) bitar.push(when);
-  if (item.count > 1) bitar.push(`${item.count} st`);
-  bitar.push(locationLabel(item.location));
-
-  /*
-    Skiljetecknet är ett riktigt tecken, inte ett tomt element med bakgrundsfärg.
-    Blink och WebKit lägger inte in blanksteg mellan inline-syskon när ett
-    tillgängligt namn räknas ut, så prickelementet gav uppläsningen
-    "om 3 dagar2 stKylen" — två sammanslagna ord där skärmen visar tre delar.
-  */
-  return <span className="band-when">{bitar.join(' · ')}</span>;
+// Underraden: antal och plats. Nedräkningen sitter i pillret till höger, så
+// den upprepas inte här.
+function under(item) {
+  const delar = [];
+  if (item.count > 1) delar.push(`${item.count} st`);
+  delar.push(locationLabel(item.location));
+  if (item.brand) delar.push(item.brand);
+  return delar.join(' · ');
 }
 
-/*
-  Bandet: en vara som kräver ett beslut.
-
-  Besluten är ikoner och inte fullbreda knappar. Tre etiketterade knappar per
-  band gav femton grå rektanglar på en skärm och tvingade ner bandet till
-  ~150 px — man såg två beslut åt gången i en vy vars hela syfte är att visa
-  alla. Nu är bandet en rad på 68 px och samma skärm rymmer sju. De etiketterade
-  varianterna finns kvar ett tryck bort, i varans eget kort.
-
-  Frys in är räddningen: de tre utrymmena är tre hastigheter på förfall, och att
-  frysa in är att pausa klockan.
-*/
-function Band({ item, onSelect, onRemove, onFreeze }) {
+function Rad({ item, onSelect, atgard }) {
   const state = expiryState(item.expiresOn);
-
   return (
-    <article id={`vara-${item.id}`} className={`band band-${state}`}>
-      <button type="button" className="band-head" onClick={() => onSelect(item)}>
-        <Thumb item={item} size={44} />
-        <span className="band-text">
-          <span className="band-name">{item.name}</span>
-          <Under item={item} when={fmtBandExpiry(item.expiresOn)} />
-        </span>
-      </button>
-
-      <div className="band-actions">
-        {item.location !== 'freezer' && state !== 'expired' && (
-          <button className="ikon-act" onClick={() => onFreeze(item)}
-            aria-label={`Frys in ${item.name}`}>
-            <Snowflake size={17} />
-          </button>
-        )}
-        <button className="ikon-act" onClick={() => onRemove(item, 'consumed')}
-          aria-label={`${item.name} är uppäten`}>
-          <Check size={17} />
-        </button>
-        <button className="ikon-act ikon-act-warm" onClick={() => onRemove(item, 'waste')}
-          aria-label={`Släng ${item.name}`}>
-          <Trash2 size={17} />
-        </button>
-      </div>
-    </article>
+    <button type="button" id={`vara-${item.id}`} className="rad" onClick={() => onSelect(item)}>
+      <Bild item={item} />
+      <span className="rad-text">
+        <span className="rad-namn">{item.name}</span>
+        <span className="rad-under">{under(item)}</span>
+      </span>
+      {atgard || (
+        <span className={`dagar dagar-${state}`}>{fmtBandExpiry(item.expiresOn)}</span>
+      )}
+    </button>
   );
 }
 
-// Veckans varor kräver inget beslut i dag — de ska gå att överblicka, inte
-// hanteras. Därför en rad utan knappar.
-function Row({ item, onSelect, action }) {
-  return (
-    <div id={`vara-${item.id}`} className="row">
-      <button type="button" className="row-head" onClick={() => onSelect(item)}>
-        <Thumb item={item} size={34} />
-        <span className="row-text">
-          <span className="row-name">{item.name}</span>
-          <Under item={item} when={action ? null : fmtBandExpiry(item.expiresOn)} />
-        </span>
-      </button>
-      {action}
-    </div>
-  );
-}
+const Grupp = ({ titel, antal, children }) => (
+  <section className="grupp">
+    <h2 className="grupp-titel">{titel}<span className="grupp-antal">{antal}</span></h2>
+    <div className="kort">{children}</div>
+  </section>
+);
 
 /*
-  Resten: det som håller sig. Här är frågan inte "vad ska jag äta" utan "har jag
-  senap hemma", och då är utrymmet rätt ordningsprincip igen.
+  Håller sig: brickor i stället för rader. Här är frågan "har jag senap hemma",
+  inte "vad ska jag äta", och då räcker namnet — och då är utrymmet rätt
+  ordningsprincip igen.
 */
-function Stash({ items, onSelect }) {
+function Forrad({ items, onSelect }) {
   const perPlats = useMemo(() => {
     const map = new Map();
     for (const item of items) {
@@ -138,30 +81,27 @@ function Stash({ items, onSelect }) {
   }, [items]);
 
   return (
-    <div className="stash">
+    <section className="grupp">
+      <h2 className="grupp-titel">Håller sig<span className="grupp-antal">{items.length}</span></h2>
       {perPlats.map(([location, list]) => (
-        <div key={location} className="stash-group">
-          <h3 className="stash-head">{locationLabel(location)} <span>{list.length}</span></h3>
-          <div className="stash-chips">
+        <div key={location} className="forrad">
+          <div className="forrad-plats">{locationLabel(location)}</div>
+          <div className="brickor">
             {list.map(item => (
-              <button key={item.id} id={`vara-${item.id}`} className="chip-item"
+              <button key={item.id} id={`vara-${item.id}`} className="bricka"
                 onClick={() => onSelect(item)}>
                 {item.name}
-                {item.count > 1 && <span className="chip-count">{item.count}</span>}
+                {item.count > 1 && <span className="bricka-antal">{item.count}</span>}
               </button>
             ))}
           </div>
         </div>
       ))}
-    </div>
+    </section>
   );
 }
 
-const Eyebrow = ({ children, n }) => (
-  <h3 className="eyebrow">{children}{n !== undefined && <span className="eyebrow-n">{n}</span>}</h3>
-);
-
-export default function FridgeView({ items, loading, error, onRetry, onSelect, onAddClick, onRemove, onFreeze }) {
+export default function FridgeView({ items, loading, error, onRetry, onSelect, onAddClick }) {
   const [query, setQuery] = useState('');
   const [searching, setSearching] = useState(false);
 
@@ -186,16 +126,13 @@ export default function FridgeView({ items, loading, error, onRetry, onSelect, o
     };
   }, [items]);
 
-  const scrollTo = (item) => {
-    document.getElementById(`vara-${item.id}`)
-      ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  };
+  const lage = useMemo(() => lagesText(items), [items]);
 
   if (loading && !items.length) return <p className="tomt">Öppnar kylskåpet…</p>;
   if (error && !items.length) {
     return (
       <div className="tomt">
-        <p style={{ marginBottom: 14 }}>Kunde inte hämta lagret.<br />{error}</p>
+        <p style={{ marginBottom: 16 }}>Kunde inte hämta lagret.<br />{error}</p>
         <button className="btn-ghost btn-pill" onClick={onRetry}>Försök igen</button>
       </div>
     );
@@ -203,100 +140,78 @@ export default function FridgeView({ items, loading, error, onRetry, onSelect, o
 
   return (
     <>
-      {/*
-        Instrumentpanelen: datum, sök, lägg till och streckkoden i ett mörkt
-        block. Tidigare svävade den mörka raden ensam mitt i en ljus sida och
-        läste som en rand; nu har appen en arkitektonisk topp — ett mörkt
-        instrument och en ljus arbetsyta — och det är den enda mörka ytan i hela
-        appen.
-      */}
-      <div className="instrument">
-        <div className="instrument-head">
-          <span className="instrument-date">{fmtToday()}</span>
-          <div className="instrument-actions">
-            <button className="ikon-mork" aria-label={searching ? 'Stäng sök' : 'Sök vara'}
-              onClick={() => { setSearching(s => !s); setQuery(''); }}>
-              {searching ? <X size={19} /> : <Search size={19} />}
-            </button>
-            <button className="ikon-mork ikon-primar" onClick={onAddClick} aria-label="Lägg till vara">
-              <Plus size={19} strokeWidth={2.4} />
-            </button>
-          </div>
+      <header className="topp">
+        <div className="topp-rad">
+          <button className="topp-rund" aria-label={searching ? 'Stäng sök' : 'Sök vara'}
+            onClick={() => { setSearching(s => !s); setQuery(''); }}>
+            {searching ? <X size={19} /> : <Search size={19} />}
+          </button>
+          <button className="topp-rund topp-rund-primar" onClick={onAddClick}
+            aria-label="Lägg till vara">
+            <Plus size={20} strokeWidth={2.4} />
+          </button>
         </div>
 
-        {searching ? (
-          <input className="instrument-sok" autoFocus value={query}
-            onChange={e => setQuery(e.target.value)}
-            aria-label="Sök i hela kylskåpet"
-            placeholder="Sök i hela kylskåpet" />
-        ) : items.length > 0 && <Rail items={items} onPick={scrollTo} />}
-      </div>
+        {!searching && (
+          <h1 className={`lage lage-${lage.ton}`}>
+            {lage.tal !== undefined && <><span className="lage-tal">{lage.tal}</span>{' '}</>}
+            {lage.text}
+          </h1>
+        )}
+      </header>
+
+      {searching && (
+        <input className="sok-falt" autoFocus value={query}
+          aria-label="Sök i hela kylskåpet"
+          placeholder="Sök i hela kylskåpet"
+          onChange={e => setQuery(e.target.value)} />
+      )}
 
       {hits ? (
-        <>
-          <Eyebrow n={hits.length}>{hits.length === 1 ? 'träff' : 'träffar'}</Eyebrow>
-          {hits.length
-            ? hits.map(item => <Row key={item.id} item={item} onSelect={onSelect} />)
-            : <p className="tomt">Ingen vara heter så.</p>}
-        </>
+        hits.length
+          ? <Grupp titel={hits.length === 1 ? 'Träff' : 'Träffar'} antal={hits.length}>
+              {hits.map(item => <Rad key={item.id} item={item} onSelect={onSelect} />)}
+            </Grupp>
+          : <p className="tomt">Ingen vara heter så.</p>
       ) : !items.length ? (
         <div className="tomt">
-          <p>Kylskåpet är tomt.<br />Tryck på plusknappen eller skanna en streckkod.</p>
+          <p>Skanna en streckkod eller tryck på plus för att lägga in din första vara.</p>
         </div>
       ) : (
         <>
           {attGora.length > 0 && (
-            <section>
-              <Eyebrow n={attGora.length}>Att göra</Eyebrow>
-              {attGora.map(item => (
-                <Band key={item.id} item={item} onSelect={onSelect}
-                  onRemove={onRemove} onFreeze={onFreeze} />
-              ))}
-            </section>
+            <Grupp titel="Ät nu" antal={attGora.length}>
+              {attGora.map(item => <Rad key={item.id} item={item} onSelect={onSelect} />)}
+            </Grupp>
           )}
 
           {veckan.length > 0 && (
-            <section>
-              <Eyebrow n={veckan.length}>Den här veckan</Eyebrow>
-              {veckan.map(item => <Row key={item.id} item={item} onSelect={onSelect} />)}
-            </section>
+            <Grupp titel="Den här veckan" antal={veckan.length}>
+              {veckan.map(item => <Rad key={item.id} item={item} onSelect={onSelect} />)}
+            </Grupp>
           )}
 
-          {/* Utan datum var tidigare osynligt: rutan föll tillbaka på mängden och
-              såg likadan ut som en vara med full koll. Nu är frånvaron ett hål
-              man lagar med ett tryck — och sorteringen, hyllindelningen och
-              receptprioriteringen hänger alla på att det blir lagat. */}
+          {/* Utan datum var tidigare osynligt: raden föll tillbaka på mängden
+              och såg likadan ut som en vara med full koll. Sortering,
+              gruppering och receptprioritering hänger alla på att det blir
+              ifyllt, så frånvaron är ett hål man lagar med ett tryck. */}
           {utanDatum.length > 0 && (
-            <section>
-              <Eyebrow n={utanDatum.length}>Utan datum</Eyebrow>
+            <Grupp titel="Utan datum" antal={utanDatum.length}>
               {utanDatum.map(item => (
-                <Row key={item.id} item={item} onSelect={onSelect}
-                  action={
-                    <button className="act act-date" onClick={() => onSelect(item)}>
+                <Rad key={item.id} item={item} onSelect={onSelect}
+                  atgard={
+                    <span className="satt-datum" role="presentation">
                       <CalendarPlus size={14} /> Sätt datum
-                    </button>
+                    </span>
                   } />
               ))}
-            </section>
+            </Grupp>
           )}
 
-          {resten.length > 0 && (
-            <section>
-              <Eyebrow n={resten.length}>Håller sig</Eyebrow>
-              <Stash items={resten} onSelect={onSelect} />
-            </section>
-          )}
+          {resten.length > 0 && <Forrad items={resten} onSelect={onSelect} />}
 
-          {!attGora.length && !veckan.length && (
-            <p className="lugnt">Inget brådskar den närmaste veckan.</p>
-          )}
-
-          {/* Sidan behöver ett slut. Totalen står här och inte överst: den
-              besvarar ingen fråga man har när man öppnar appen, men den svarar
-              på "var det allt?" när man skrollat färdigt. */}
           <footer className="summa">
-            {[`${items.length} varor`, utanDatum.length && `${utanDatum.length} utan datum`]
-              .filter(Boolean).join(' · ')}
+            {fmtToday()} · {items.length} varor
           </footer>
         </>
       )}

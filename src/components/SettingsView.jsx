@@ -92,7 +92,7 @@ export default function SettingsView({ serverAi, persistent, onKeyChanged, onRel
       {/* persistent === false, inte !persistent: null betyder "vet inte än", och
           då ska ingen varning visas. */}
       {persistent === false && !isLocalhost && (
-        <div className="banner banner-warn" style={{ marginTop: 'var(--space-4)' }}>
+        <div className="banner banner-warn" style={{ marginTop: 16 }}>
           <AlertTriangle size={17} />
           <span>
             Servern saknar <span className="mono">TURSO_URL</span> — lagret ligger på ett tillfälligt
@@ -110,8 +110,8 @@ export default function SettingsView({ serverAi, persistent, onKeyChanged, onRel
         {/* --bg-base och inte --bg-elevated: panelen är vit nu, så nyckeln hade
             försvunnit in i sin egen bakgrund. */}
         <div className="mono" style={{
-          background: 'var(--bg-base)', padding: '10px 12px',
-          borderRadius: 'var(--radius-xs)', marginBottom: 12, wordBreak: 'break-all',
+          background: 'var(--mark)', padding: '10px 12px',
+          borderRadius: 'var(--r-kontroll)', marginBottom: 12, wordBreak: 'break-all',
         }}>{key}</div>
 
         <div className="grid-2">
@@ -196,7 +196,7 @@ export default function SettingsView({ serverAi, persistent, onKeyChanged, onRel
         <p>Lagring: {persistent ? 'Turso' : 'lokal databasfil'}.</p>
       </div>
 
-      <button className="btn-ghost" style={{ marginTop: 'var(--space-4)' }}
+      <button className="btn-ghost" style={{ marginTop: 16 }}
         onClick={() => {
           if (!confirm('Nollställ nyckeln? Du får ett nytt, tomt kylskåp. Spara nuvarande nyckel först om du vill tillbaka.')) return;
           navigator.clipboard?.writeText(key).catch(() => {});

@@ -7,7 +7,7 @@ du kan laga på det som faktiskt finns hemma.
 
 ## Funktioner
 
-- **Kylskåpet, inte listan** — ett utrymme i taget (kyl, frys, skafferi) med innehållet ställt på hyllor efter hur bråttom det är: *Ät snart*, *Den här veckan*, *Håller sig*. Luckorna visar antal och en prick när något brådskar där inne.
+- **Tid, inte plats** — allt som brådskar i kyl, frys och skafferi står i samma lista, grupperat efter hur bråttom det är: *Ät nu*, *Den här veckan*, *Utan datum*, *Håller sig*. Utrymmet är en upplysning på raden, inte ett läge man växlar mellan. Överst säger appen läget i en mening: *"1 vara har gått ut."*
 - **Streckkodsskanner** — kontinuerlig avläsning ur kameraströmmen (EAN-13/8, UPC-A/E, ITF). Kameran fortsätter efter varje träff, så en hel matkasse kan tömmas i ett svep. Autoläge lägger in varan direkt.
 - **Redan hemma** — vid en träff visar skannern om varan redan står inne, och var. Skanna en tom förpackning så räknas den ner; sista exemplaret markeras som slut. Den som går ut först räknas ner, för det är den man äter upp härnäst.
 - **Produktuppslag** — namn, märke, mängd och bild från [Open Food Facts](https://world.openfoodfacts.org). Okänd streckkod? Namnge varan en gång, så känns den igen nästa gång.
@@ -215,40 +215,54 @@ gör cachen nödvändig. Andra skanningen av samma vara når aldrig deras API.
 
 ## Design
 
-**Värme betyder förfall.** Ett kylskåp håller undan förruttnelse genom att vara
-kallt, så hela appen är kall — plåt (`#E3E9EA`), lyst innervägg (`#F5F9F9`),
-kall nästan-svart text (`#101719`) och exakt en mättad kall färg (`#0F6C7E`)
-för allt man kan trycka på. Den enda värmen i appen betyder att maten håller på
-att dö: ljummet (`#C9741C`) inom dagar, varmt (`#B33A22`) i dag eller passerat.
+**Värme betyder förfall.** Appen är neutral — nästan vit mark (`#F7F7F5`), vita
+kort, nästan svart text (`#17191B`). Det enda som får värme är mat som håller på
+att bli dålig: rött (`#B5402B`) för det som gått ut eller går ut i dag,
+bärnsten (`#9A5A0F`) inom tre dagar. Den enda mättade färg som *inte* betyder
+förfall är granen (`#16745A`), som bär allt man kan trycka på.
 
-Det är också en läsbarhetsfråga. Den gamla skalan var röd/gul/grön, alltså exakt
-den axel som försvinner vid rödgrönblindhet. Kall→varm är både en ton- *och* en
-ljushetsaxel och överlever därför färgseendet.
+Det är också en läsbarhetsfråga. Röd/gul/grön är exakt den axel som försvinner
+vid rödgrönblindhet; kall→varm är både en ton- och en ljushetsaxel och överlever
+färgseendet. `#16745A` klarar 5,7:1 mot vitt både som text och med vit text
+ovanpå, så en variabel räcker där den gamla gröna kärvde två.
 
-`#0F6C7E` klarar 5,7:1 mot innerväggen som text *och* 6,1:1 med vit text ovanpå,
-så den behöver inte den fyllnad/text-uppdelning den gamla gröna kärvde.
-`#C9741C` går inte att få dit (3,3:1 som text) — där finns `--warn-ink` kvar, av
-fysik och inte av smak.
+**Tid är ordningsprincipen, inte plats.** Allt som brådskar i kyl, frys och
+skafferi står i samma lista; utrymmet är en upplysning på raden. Tidigare krävdes
+tre luckbyten för att se allt som brådskade.
 
-Typsnitten har tre roller, och rollen avgör vem som talar: **Familjen Grotesk**
-(Letters from Sweden, ritat för svensk offentlig text) är människans ord —
-rubriker, varunamn, knappar. **IBM Plex Sans** är prosan som förklarar. **IBM
-Plex Mono** är maskinens avläsningar — datum, antal, streckkoder. Ett bäst
-före-datum är en avläsning och sätts därför aldrig i Familjen.
+### Signaturen: läget som en mening
 
-### Signaturen: ljuset
+De flesta appar visar en siffra med en etikett under. Den här skriver ut sitt
+omdöme på svenska — *"1 vara har gått ut."*, *"Allt håller sig ett tag till."* —
+och meningen ändras varje dag. Det är hela hälsokontrollen på en rad, och det
+enda stället i appen där texten är stor. Logiken bor i `src/lib/lage.js` och är
+testad; ordningen är prioritet och inte antal, för har något gått ut spelar det
+ingen roll hur mycket annat som är i sin ordning.
 
-Skåpet har en enda ljuskälla, i taket, och **dess färgtemperatur är datan**.
-`FridgeView` räknar ut `--larm` (0, 0,5 eller 1) ur den öppna luckans innehåll,
-och CSS:en tonar in ett varmt lager i toppen. Går något ut snart lyser det varmt
-däruppe — kylan sviker just där. Är allt i sin ordning är ljuset genomgående
-kallt och vitt. Man ser hela kylskåpets hälsa på ljusets färg innan man läst ett
-enda ord, och därför ligger *Ät snart* högst upp: ljuset landar på det som
-brådskar.
+### Typsnitt
 
-Ljusgradienten är appens **enda** gradient. Allt annat är matt — det är regeln
-som håller designen från att glida iväg till ännu en glasig instrumentpanel.
+**Familjen Grotesk** (Letters from Sweden, ritat för svensk offentlig text) bär
+identiteten i rubriker och varunamn. **Inter** gör läsbarhetsarbetet i allt
+smått — på en telefon vinner tråkigt och korrekt över karaktärsfullt och
+riskabelt.
 
-Hyllplanen är ritade glaskanter så att varorna står på något i stället för att
-sväva. Rutorna på en hylla är alltid lika höga: ojämna höjder var halva
-rörigheten i den gamla listan.
+### Vad som ströks, och varför
+
+En tidigare omgång blev teknisk och kall. Det som togs bort:
+
+- **Monospace-versaler.** "Maskinens röst" applicerades tills hela appen skrek i
+  terminaltypsnitt. 10px versaler med 0,14em spärr är svårläst på en telefon och
+  läser som ett utvecklarverktyg.
+- **Streckkoden** — ett svart block med 22 staplar överst i en matapp. Den som
+  öppnar kylskåpet i fem sekunder behöver inte ett histogram.
+- **Monogrammen** ("RL", "AG") — förkortningar som läste som platshållare.
+- **Kant-till-kant med radie 0** — varken kort eller lista; läste som webbsida.
+- **Ikonknappar på varje rad** — femton grå ikoner i en lista är brus, och
+  "slängd" respektive "slut" förtjänar riktiga etiketter. Besluten bor i varans
+  kort.
+
+### Radier
+
+Tre värden, inte sex: kort och ark 18px, allt man trycker på 12px, piller runda.
+Blandade radier var det som fick appen att se hopplockad ut.
+

@@ -24,7 +24,7 @@ export function Stepper({ value, onChange, min = 1 }) {
 
 export function LocationPicker({ value, onChange }) {
   return (
-    <div className="segmented on-elevated">
+    <div className="segmented">
       {LOCATIONS.map(l => (
         <button key={l.id} className={value === l.id ? 'active' : ''} onClick={() => onChange(l.id)}>
           {l.label}

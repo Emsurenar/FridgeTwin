@@ -1,103 +1,87 @@
 /*
   ────────────────────────────────────────────────────────────────────────────
-  Värme betyder förfall.
+  FridgeTwin — designsystem
 
-  Ett kylskåp är en maskin som håller undan förruttnelse genom att vara kallt.
-  Därför är hela appen kall — bakgrunder, ytor, text, kanter — och den enda
-  varma färgen någonstans betyder att maten håller på att dö. Blir något varmt
-  är det en nedräkning, aldrig dekoration.
+  Omtänkt från grunden efter att den förra omgången blev teknisk och kall. Vad
+  som ströks och varför:
 
-  Det är också en läsbarhetsfråga. Den gamla skalan var röd/gul/grön, alltså
-  exakt den axel som försvinner vid rödgrönblindhet. Kall→varm är både en
-  ton- *och* en ljushetsaxel och överlever därför färgseendet.
+  · Monospace-versaler överallt. "Maskinens röst" applicerades tills hela appen
+    skrek i terminaltypsnitt — 10px versaler med 0,14em spärr är svårläst på en
+    telefon och läser som ett utvecklarverktyg, inte som något man har i köket.
+    Mono finns inte längre i appen.
+  · Streckkoden. Ett svart block med 22 staplar och kryptiska etiketter överst
+    i en matapp. Den som öppnar kylskåpet i fem sekunder behöver inte ett
+    histogram, den behöver veta vad som ska ätas.
+  · Monogrammen. "RL", "AG" — förkortningar som läser som platshållare.
+  · Kant-till-kant med radie 0. Varken kort eller lista; läser som webbsida.
+  · Ikonknappar på varje rad. Femton grå ikoner i en lista är brus, och besluten
+    hör hemma i varans kort där de får riktiga etiketter.
 
-  Typsnitten har tre roller, och rollen avgör vem som talar:
-    Familjen Grotesk   människans ord — rubriker, varunamn, knappar
-    IBM Plex Sans      prosa som förklarar
-    IBM Plex Mono      maskinens avläsningar — datum, antal, streckkoder
+  Vad som står kvar, för det var rätt:
+  · Värme betyder förfall. Appen är neutral; det enda som får färg är mat som
+    håller på att bli dålig. Kall→varm är både en ton- och en ljushetsaxel och
+    överlever färgseendet, till skillnad från röd/gul/grön.
+  · Tid är ordningsprincipen, inte plats. Allt som brådskar i kyl, frys och
+    skafferi står i samma lista.
 
-  Familjen Grotesk är ritat av Letters from Sweden för svensk offentlig text.
-  I en svenskspråkig app om ett svenskt kök är det ett skäl, inte ett tycke.
+  Typsnitt: Familjen Grotesk (Letters from Sweden) bär identiteten i rubriker
+  och varunamn. Inter gör läsbarhetsarbetet i allt smått — det är den bäst
+  konstruerade gränssnittsfonten som finns för små grader, och på en telefon
+  vinner tråkigt och korrekt över karaktärsfullt och riskabelt.
   ────────────────────────────────────────────────────────────────────────────
 */
 
 :root {
-  /* ---- Paletten: kylskåpets egna material ---- */
-  --stal:   #E3E9EA; /* plåten utanpå — appens mark */
-  --insida: #F5F9F9; /* den lysta innerväggen — ytor */
-  --natt:   #0C1416; /* insidan av ett stängt skåp — bakgrund för streckkoden,
-                        och sidans enda mörka yta. Utan den är allt en och samma
-                        ljusa ton och sidan saknar fokuspunkt. */
-  --skugga: #101719; /* kall nästan-svart, blågrön ton */
-  --is:     #0F6C7E; /* det enda mättat kalla — allt man kan trycka på */
-  --ljum:   #C9741C; /* ljummet: går ut inom dagar */
-  --varm:   #B33A22; /* varmt: går ut i dag, eller har redan gått */
+  /* ---- Färg ----
+     Nästan vit mark i stället för den gamla grågröna. Maten och brådskan ska
+     vara det enda färgade; en mättad bakgrund tävlar med produktbilderna och
+     gjorde appen oaptitlig. */
+  --mark: #F7F7F5;
+  --yta: #FFFFFF;
+  --yta-tryck: #F1F1EE;
+  --sank: #EFEFEC;
 
-  /*
-    --is klarar 5,7:1 mot --insida som text *och* 6,1:1 med vit text ovanpå,
-    så den behöver inte den fyllnad/text-uppdelning som den gamla gröna kärvde.
-    Ljumt går inte att få dit: #C9741C som text ligger på 3,3:1. Där finns
-    uppdelningen kvar, av fysik och inte av smak.
-  */
-  --ljum-ink: #8F5210;
+  --black: #17191B;
+  --dampad: #6C7278;
+  --linje: rgba(23, 25, 27, 0.08);
+  --linje-stark: rgba(23, 25, 27, 0.16);
 
-  /* ---- Roller ----
-     JSX sätter en del färger inline via var(--…), så rollnamnen är också API.
-     Byt värde här; byt inte namn utan att söka igenom komponenterna. */
-  --bg-base: var(--stal);
-  --bg-alt: #EDF2F3;
-  --bg-surface: var(--insida);
-  --bg-surface-hover: #EAF1F2;
-  --bg-elevated: #FFFFFF;
-  --bg-sunken: #D6E0E2;
+  /* Granen: svensk skog, och den enda mättade färg som inte betyder förfall.
+     5,71:1 mot vitt både som text och med vit text ovanpå — en variabel räcker. */
+  --gron: #16745A;
+  --gron-tryck: #115C48;
+  --gron-tunn: #EAF3F0;
 
-  --border-color: rgba(16, 23, 25, 0.10);
-  --border-hover: rgba(16, 23, 25, 0.20);
-
-  --text-primary: var(--skugga);
-  --text-secondary: #4A5A5E;
-  --text-muted: #556A6F;
-
-  --accent: var(--is);
-  --accent-ink: var(--is); /* samma värde med flit — se noten om --is ovan */
-  --accent-soft: rgba(15, 108, 126, 0.10);
-  --accent-glow: rgba(15, 108, 126, 0.20);
-
-  --danger: var(--varm);
-  --danger-ink: var(--varm);
-  --danger-soft: rgba(179, 58, 34, 0.12);
-  --warn: var(--ljum);
-  --warn-ink: var(--ljum-ink);
-  --warn-soft: rgba(201, 116, 28, 0.16);
-
-  /* Kall skugga: neutralt svart ovanpå den här paletten ser smutsigt ut. */
-  --shadow-card: 0 1px 2px rgba(16, 23, 25, 0.05), 0 6px 16px rgba(16, 23, 25, 0.06);
-  --shadow-lift: 0 8px 28px rgba(16, 23, 25, 0.16);
+  /* Värmen. Två steg, för det finns två sorters brådska: den som gått ut och
+     den som är på väg. Bläcktonerna är mörkare än fyllningarna av fysik —
+     mättad bärnsten som text klarar inte 4,5:1. */
+  --rod: #B5402B;
+  --rod-tunn: #FBEDEA;
+  --barnsten: #9A5A0F;
+  --barnsten-tunn: #FDF2E3;
 
   --font-display: 'Familjen Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-body: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+  --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 
-  --nav-bg: rgba(245, 249, 249, 0.92);
-  --nav-height: 62px;
+  /* ---- Radie ----
+     Tre värden, inte sex. Kort och ark är 18, allt man trycker på är 12, piller
+     är runda. Blandade radier var det som fick appen att se hopplockad ut. */
+  --r-kort: 18px;
+  --r-kontroll: 12px;
+  --r-piller: 999px;
+
+  --skugga: 0 1px 2px rgba(23, 25, 27, 0.04), 0 8px 24px rgba(23, 25, 27, 0.06);
+  --skugga-lyft: 0 12px 40px rgba(23, 25, 27, 0.18);
+
+  --sida: 16px;
+
+  --nav-hojd: 64px;
   /* Home-indikatorns svepyta är ~13pt, inte Apples fulla 34pt inset — vi kapar
      16 och landar på 18pt, vilket håller etiketterna klart ovanför ytan.
      Två deklarationer med flit: klarar en motor inte env() inuti max() blir den
      andra ogiltig och den första står kvar. */
   --nav-safe: env(safe-area-inset-bottom, 0px);
   --nav-safe: max(env(safe-area-inset-bottom, 0px) - 16px, 0px);
-
-  --radius: 14px;
-  --radius-sm: 10px;
-  --radius-xs: 8px;
-
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-5: 20px;
-  --space-6: 24px;
-  --space-8: 32px;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -111,10 +95,11 @@ html {
 }
 
 body {
-  font-family: var(--font-body);
-  background-color: var(--bg-base);
-  color: var(--text-primary);
+  font-family: var(--font-ui);
+  background: var(--mark);
+  color: var(--black);
   -webkit-font-smoothing: antialiased;
+  font-size: 15px;
   line-height: 1.5;
   height: 100%;
   overflow: hidden;
@@ -132,154 +117,52 @@ body {
   flex-direction: column;
   max-width: 480px;
   margin: 0 auto;
-  background: var(--bg-base);
+  background: var(--mark);
 }
 
 .content-area {
   flex: 1;
   overflow-y: auto;
-  padding: calc(var(--space-5) + env(safe-area-inset-top, 0px)) var(--space-5) calc(var(--nav-height) + var(--nav-safe) + 24px) var(--space-5);
+  padding: calc(12px + env(safe-area-inset-top, 0px)) var(--sida) calc(var(--nav-hojd) + var(--nav-safe) + 28px);
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
 }
 
 /* ---- Typografi ----
-   Rollerna är inte dekor: människan talar i Familjen, maskinen rapporterar i
-   Plex Mono, prosan förklarar i Plex Sans. Ett datum är en avläsning och sätts
-   därför aldrig i Familjen. */
-h1, h2 {
+   Två familjer, två jobb. Familjen Grotesk är rubrikernas och varunamnens
+   röst; Inter bär allt som ska läsas snabbt och smått. */
+h1, h2, h3 {
   font-family: var(--font-display);
   font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
   margin: 0;
 }
-h1 {
-  font-size: 2.05rem;
-  letter-spacing: -0.035em;
-  line-height: 1.05;
-  margin-bottom: 6px;
-}
-h2 {
-  font-size: 1.2rem;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  line-height: 1.2;
-}
-/* Ögonbrynet är maskinens etikett på en hylla eller ett avsnitt. */
-h3 {
-  font-family: var(--font-mono);
-  font-size: 0.66rem;
-  font-weight: 500;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.16em;
-  margin: 0;
-}
-p { color: var(--text-secondary); font-size: 0.92rem; line-height: 1.6; }
-a { color: var(--accent-ink); }
+h1 { font-size: 1.7rem; }
+h2 { font-size: 1.15rem; letter-spacing: -0.02em; }
+h3 { font-size: 1.02rem; letter-spacing: -0.02em; }
+p { color: var(--dampad); line-height: 1.55; }
+a { color: var(--gron); }
 
 /* Kvalitetsgolv: tangentbordsfokus ska alltid synas, på allt. */
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--gron);
   outline-offset: 2px;
 }
 
-/*
-  Panelen är inte längre ett svävande kort. En vit slab kant till kant med
-  radie 0 hör ihop med banden i kylskåpsvyn — samma yta, samma logik — medan
-  ett rundat kort med skugga hade läst som ett objekt på en sida. Skuggan är
-  också borta: sidan har en mörk fokuspunkt nu och behöver inte falsk höjd för
-  att skapa hierarki.
-*/
-.panel {
-  margin-left: calc(var(--space-5) * -1);
-  margin-right: calc(var(--space-5) * -1);
-  margin-bottom: 3px;
-  padding: var(--space-5);
-  background: var(--bg-elevated);
-}
-
-/* Sidrubriken i Recept och Inställningar. Kompakt och vänsterställd — den ska
-   namnge sidan, inte fylla den. */
-.sidhuvud {
-  margin-bottom: var(--space-5);
-}
-.sidhuvud h1 {
-  font-size: 1.6rem;
-  letter-spacing: -0.03em;
-  margin-bottom: 2px;
-}
-.sidhuvud p { font-size: 0.88rem; }
-
-/* Inputs — 16px förhindrar att iOS zoomar in vid fokus */
-input, select, textarea {
-  width: 100%;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-hover);
-  border-radius: var(--radius-sm);
-  padding: 14px 16px;
-  color: var(--text-primary);
-  font-family: var(--font-body);
-  font-size: 16px;
-  margin-bottom: 12px;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-  appearance: none;
-}
-input:focus, select:focus, textarea:focus {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-glow);
-}
-input::placeholder { color: var(--text-muted); }
-
-select {
-  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%234A5A5E' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 14px center;
-  background-size: 16px;
-  padding-right: 44px;
-}
-
-input[type="date"] {
-  min-height: 50px;
-  color-scheme: light;
-  font-family: var(--font-mono);
-  font-size: 15px;
-}
-
-/*
-  Fältetiketten är samma sak som ett ögonbryn eller en sektionsrubrik: maskinens
-  namn på något. Appen hade tre olika behandlingar för samma roll — 0.8rem
-  brödtext i formulären, mono-versaler i skannern, mono-versaler i recepten.
-  En roll, en form.
-*/
-label {
-  display: block;
-  margin-bottom: 8px;
-  font-family: var(--font-mono);
-  font-size: 0.62rem;
-  font-weight: 500;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-
-/*
-  Knappar i Familjen Grotesk, gemener. Den gamla versalspärrade CTA:n var lånad
-  från ett annat varumärke och skrek dessutom åt en som bara ville lägga in
-  gräddfil. Vikten får bära tyngden i stället för versalerna.
-*/
+/* ---- Knappar ---- */
 button {
-  background: var(--accent);
+  background: var(--gron);
   color: #fff;
   border: none;
-  border-radius: var(--radius-xs);
+  border-radius: var(--r-kontroll);
   padding: 15px 20px;
-  font-family: var(--font-display);
+  font-family: var(--font-ui);
   font-weight: 600;
-  font-size: 1rem;
+  font-size: 0.98rem;
   letter-spacing: -0.01em;
   cursor: pointer;
-  transition: background 0.2s ease, color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+  transition: background 0.15s ease, opacity 0.15s ease, transform 0.12s ease;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -287,80 +170,457 @@ button {
   width: 100%;
   touch-action: manipulation;
 }
-button:active { transform: scale(0.97); }
-button:disabled { opacity: 0.4; cursor: default; }
-button:disabled:active { transform: none; }
+button:active { background: var(--gron-tryck); }
+button:disabled { opacity: 0.35; cursor: default; }
 
 .btn-ghost {
-  background: var(--bg-elevated);
-  color: var(--text-primary);
-  border: 1px solid var(--border-hover);
+  background: var(--yta);
+  color: var(--black);
+  border: 1px solid var(--linje-stark);
 }
-.btn-ghost:active { background: var(--bg-surface-hover); }
+.btn-ghost:active { background: var(--yta-tryck); }
 
 .btn-icon {
-  background: transparent;
-  border: none;
-  color: var(--text-secondary);
-  padding: 8px;
-  width: auto;
+  background: none;
+  color: var(--dampad);
+  padding: 0;
+  width: 40px;
   min-width: 40px;
-  min-height: 40px;
+  height: 40px;
   border-radius: 50%;
 }
-.btn-icon:active { color: var(--text-primary); background: var(--bg-sunken); }
+.btn-icon:active { background: var(--sank); color: var(--black); }
 
 .btn-pill {
   width: auto;
-  padding: 9px 14px;
-  border-radius: 100px;
+  padding: 10px 16px;
+  border-radius: var(--r-piller);
+  font-size: 0.9rem;
+}
+.btn-square { width: 52px; min-width: 52px; padding: 0; flex-shrink: 0; }
+
+.link-btn {
+  width: auto;
+  padding: 0;
+  background: none;
+  color: var(--gron);
+  font-size: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+}
+.link-btn:active { background: none; }
+
+/* ---- Layoutverktyg ---- */
+.flex-row { display: flex; align-items: center; gap: 12px; }
+.flex-between { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.stack { display: flex; flex-direction: column; gap: 8px; }
+.truncate { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+
+/* ════════════════════════════════════════════════════════════════════════
+   KYLSKÅPET
+   ════════════════════════════════════════════════════════════════════════ */
+
+.topp { margin-bottom: 22px; }
+.topp-rad {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+/* Kanten är 1,6:1 mot marken med --linje, alltså osynlig. En kontroll måste
+   synas som en kontroll; --linje-stark ger den en yttre gräns som håller. */
+.topp-rund {
+  width: 42px;
+  min-width: 42px;
+  height: 42px;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--yta);
+  color: var(--black);
+  border: 1px solid var(--linje-stark);
+}
+.topp-rund:active { background: var(--yta-tryck); }
+.topp-rund-primar { background: var(--gron); color: #fff; border-color: transparent; }
+.topp-rund-primar:active { background: var(--gron-tryck); }
+
+/*
+  Läget som en mening.
+
+  Signaturen: appen säger vad den tycker innan den visar en lista. De flesta
+  appar visar en siffra med en etikett under; den här skriver ut omdömet på
+  svenska, i displayfonten, och meningen ändras varje dag. Det är också det enda
+  stället i appen där texten är stor — allt annat är tyst.
+*/
+.lage {
+  font-size: 1.75rem;
+  line-height: 1.2;
+  letter-spacing: -0.035em;
+  max-width: 15ch;
+}
+.lage-tal { color: var(--gron); }
+.lage-varm .lage-tal { color: var(--rod); }
+.lage-ljum .lage-tal { color: var(--barnsten); }
+
+/* ---- Grupp och kort ----
+   Rader bor i ett kort med hårfina skiljelinjer. Ett kort med luft omkring är
+   mobilens grundform; kant-till-kant med radie 0 läste som en webbsida. */
+.grupp { margin-bottom: 26px; }
+.grupp-titel {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 2px 10px;
+}
+.grupp-antal {
+  font-family: var(--font-ui);
   font-size: 0.85rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--dampad);
 }
 
-/* Layout */
-.flex-row { display: flex; align-items: center; gap: var(--space-3); }
-.flex-between { display: flex; align-items: center; justify-content: space-between; }
-.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
-.truncate { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-.stack { display: flex; flex-direction: column; gap: var(--space-2); }
+/* Ingen overflow: hidden. Den klippte fokusringen på varje rad, eftersom radens
+   border-box är identisk med kortets padding-box. Hörnen rundas i stället på
+   första och sista raden. */
+.kort {
+  background: var(--yta);
+  border-radius: var(--r-kort);
+  box-shadow: var(--skugga);
+}
+
+/*
+  Raden wrappar hellre än trycker ihop namnet.
+
+  Bild och nedräkningspiller är båda okrympbara, så på en 320px-skärm blev
+  textkolumnen 77 px — "Arla Ko Ekologisk Mellanmjölk 1,5 %" fick inte plats ens
+  på två rader. Med flex-wrap och en golvbredd på textkolumnen flyttar pillret
+  ner på egen rad när det behövs, i stället för att äta namnet. Flytande i
+  stället för en brytpunkt: det är textens längd som avgör, inte skärmens.
+*/
+.rad {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  width: 100%;
+  padding: 11px 14px;
+  background: none;
+  border-radius: 0;
+  text-align: left;
+  font-family: var(--font-ui);
+  font-size: 1rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--black);
+}
+.rad:first-child { border-radius: var(--r-kort) var(--r-kort) 0 0; }
+.rad:last-child { border-radius: 0 0 var(--r-kort) var(--r-kort); }
+.rad:only-child { border-radius: var(--r-kort); }
+.rad + .rad { box-shadow: inset 0 1px 0 var(--linje); }
+.rad:active { background: var(--yta-tryck); }
+
+/*
+  Produktbilden är appens bästa visuella tillgång. Saknas den ritas ingen
+  bokstavsförkortning — bara en tyst ikon. En generisk platshållare ska se ut
+  som en platshållare, inte som ett märke.
+*/
+/*
+  Platsen till vänster är alltid lika bred, så namnen linjerar oavsett om varan
+  har en bild eller inte. Men platshållaren är nästan osynlig: en tydlig grå
+  ruta femton gånger nedför en lista blev till egen visuell möbel utan att
+  betyda något. Den ska antyda att något saknas, inte konkurrera med namnet.
+*/
+.rad-bild {
+  width: 46px;
+  height: 46px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-kontroll);
+  background: #F4F4F1;
+  color: #D3D5D1;
+  overflow: hidden;
+}
+.rad-bild img { width: 100%; height: 100%; object-fit: contain; }
+/* Har varan en riktig bild får rutan vara vit — produktbilder är fotade mot
+   vitt och ser trasiga ut mot en tonad platta. */
+.rad-bild:has(img) { background: #fff; }
+
+/* 148px är golvet: under det får inte ens ett tvåradigt namn plats, och då är
+   det pillret som ska flytta på sig. */
+.rad-text { flex: 1 1 148px; min-width: 0; }
+/*
+  Namnet får bryta rad, högst två.
+
+  Med enradig ellips kollapsade kolumnen till ~73 px på en 320px-skärm, eftersom
+  bild och nedräkningspiller båda är okrympbara — "Arla Ko Ekologisk Mellanmjölk
+  1,5 %" blev "Arla Ko E…" på appens huvudskärm. Varunamnet är det enda som
+  identifierar raden; det ska hellre ta två rader än bli oläsligt.
+*/
+.rad-namn {
+  font-family: var(--font-display);
+  font-size: 1.02rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.rad-under {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.82rem;
+  color: var(--dampad);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/*
+  Nedräkningen som piller. Gemener och riktiga ord — "i dag", "om 3 dagar" —
+  för det är hur man säger det, och versalt monospace var svårare att läsa på
+  exakt den information appen finns för.
+*/
+/* #5A6167 och inte --dampad: den senare ger 4,22:1 mot --sank, under kravet —
+   och nedräkningen är appens viktigaste information. */
+.dagar {
+  flex-shrink: 0;
+  margin-left: auto;
+  padding: 5px 10px;
+  border-radius: var(--r-piller);
+  background: var(--sank);
+  color: #5A6167;
+  font-size: 0.8rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.dagar-expired, .dagar-today { background: var(--rod-tunn); color: var(--rod); }
+.dagar-soon { background: var(--barnsten-tunn); color: var(--barnsten); }
+
+/* Knappen som sätter datum på en vara utan. Tunn grön i stället för grå: det
+   är en uppgift att göra, inte ett tillstånd att acceptera. */
+/* Ett <span> inuti radknappen, inte en egen knapp — så den måste sätta sin
+   egen display och gap. Som blockifierat flexbarn baslinjeställdes ikonen och
+   det tänkta mellanrummet blev JSX:ens bokstavliga blanksteg. */
+.satt-datum {
+  flex-shrink: 0;
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: var(--r-piller);
+  background: var(--gron-tunn);
+  color: var(--gron);
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Håller sig: brickor. Här är frågan "har jag senap hemma", inte "vad ska jag
+   äta", och då räcker namnet. */
+.forrad { margin-bottom: 14px; }
+.forrad-plats {
+  margin: 0 2px 8px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--dampad);
+}
+.brickor { display: flex; flex-wrap: wrap; gap: 7px; }
+.bricka {
+  width: auto;
+  padding: 9px 14px;
+  border-radius: var(--r-piller);
+  background: var(--yta);
+  border: 1px solid var(--linje);
+  color: var(--black);
+  font-family: var(--font-ui);
+  font-size: 0.88rem;
+  font-weight: 400;
+  gap: 7px;
+}
+.bricka:active { background: var(--yta-tryck); }
+.bricka-antal { color: var(--dampad); font-size: 0.8rem; }
+
+.summa {
+  margin-top: 26px;
+  padding-top: 16px;
+  border-top: 1px solid var(--linje);
+  font-size: 0.82rem;
+  color: var(--dampad);
+}
+
+.tomt {
+  text-align: center;
+  padding: 48px 16px;
+  color: var(--dampad);
+  line-height: 1.7;
+}
+.tomt p { color: inherit; }
+
+/* ---- Sök ---- */
+.sok-falt { margin-bottom: 18px; }
+
+/* ---- Formulär ---- */
+input, select, textarea {
+  width: 100%;
+  background: var(--yta);
+  border: 1px solid var(--linje-stark);
+  border-radius: var(--r-kontroll);
+  padding: 13px 15px;
+  color: var(--black);
+  font-family: var(--font-ui);
+  font-size: 16px; /* under 16px zoomar iOS in vid fokus */
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  appearance: none;
+}
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--gron);
+  box-shadow: 0 0 0 3px var(--gron-tunn);
+}
+/* --dampad ger 4,87:1 mot vitt; #9AA0A5 låg på 2,64:1. */
+input::placeholder { color: var(--dampad); }
+
+select {
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236C7278' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  background-size: 16px;
+  padding-right: 44px;
+}
+input[type="date"] { min-height: 50px; color-scheme: light; }
+
+/* Etiketten är en liten rubrik, inte spärrade versaler. Samma familj som
+   rubrikerna, så formulären hör ihop med resten. */
+label {
+  display: block;
+  margin-bottom: 8px;
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--black);
+}
+
+.field-hint {
+  margin: 10px 0 18px;
+  font-size: 0.85rem;
+  color: var(--dampad);
+}
+.field-hint::first-letter { text-transform: uppercase; }
 
 /* Segmenterad kontroll */
 .segmented {
   display: flex;
   gap: 2px;
-  background: var(--bg-sunken);
-  border-radius: 100px;
-  padding: 4px;
-  margin-bottom: var(--space-4);
+  background: var(--sank);
+  border-radius: var(--r-piller);
+  padding: 3px;
+  margin-bottom: 18px;
 }
 .segmented button {
   flex: 1;
-  padding: 9px 0;
-  font-size: 0.85rem;
+  min-width: 0;
+  padding: 9px 4px;
+  font-size: 0.9rem;
   font-weight: 500;
-  border-radius: 100px;
-  background: transparent;
-  color: var(--text-secondary);
+  border-radius: var(--r-piller);
+  background: none;
+  color: var(--dampad);
 }
+.segmented button:active { background: none; }
 .segmented button.active {
-  background: var(--bg-elevated);
-  color: var(--accent-ink);
+  background: var(--yta);
+  color: var(--black);
   font-weight: 600;
-  box-shadow: 0 1px 3px rgba(16, 23, 25, 0.12);
+  box-shadow: 0 1px 3px rgba(23, 25, 27, 0.12);
 }
-.segmented.on-elevated { background: var(--bg-sunken); }
 
-/* Bottennav — absolut inom #root, kan aldrig följa med i en scroll */
+.stepper { display: flex; align-items: center; gap: 14px; }
+.stepper button {
+  width: 46px;
+  min-width: 46px;
+  padding: 12px 0;
+}
+.stepper-value {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 600;
+  min-width: 34px;
+  text-align: center;
+}
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.chip {
+  width: auto;
+  padding: 10px 15px;
+  border-radius: var(--r-piller);
+  background: var(--yta);
+  border: 1px solid var(--linje-stark);
+  color: var(--black);
+  font-family: var(--font-ui);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+.chip:active { background: var(--yta-tryck); }
+.chip-on {
+  background: var(--gron);
+  border-color: var(--gron);
+  color: #fff;
+}
+.chip-foto {
+  width: auto;
+  padding: 10px 15px;
+  border-radius: var(--r-piller);
+  background: var(--gron-tunn);
+  border: 1px solid transparent;
+  color: var(--gron);
+  font-family: var(--font-ui);
+  font-size: 0.9rem;
+  font-weight: 600;
+  gap: 7px;
+}
+
+/* ---- Kort och paneler i övriga vyer ---- */
+.panel {
+  background: var(--yta);
+  border-radius: var(--r-kort);
+  box-shadow: var(--skugga);
+  padding: 18px;
+  margin-bottom: 12px;
+}
+
+.sidhuvud { margin-bottom: 20px; }
+.sidhuvud h1 { margin-bottom: 4px; }
+.sidhuvud p { font-size: 0.92rem; }
+
+/* Sektionsrubrik i Inställningar och Recept. */
+.eyebrow {
+  margin: 26px 2px 10px;
+  font-family: var(--font-display);
+  font-size: 1.02rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--black);
+}
+
+/* ---- Bottennav ----
+   Absolut inom #root, kan aldrig följa med i en scroll. */
 .bottom-nav {
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
-  height: calc(var(--nav-height) + var(--nav-safe));
-  background: var(--nav-bg);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-top: 1px solid var(--border-color);
+  height: calc(var(--nav-hojd) + var(--nav-safe));
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-top: 1px solid var(--linje);
   display: flex;
   justify-content: space-around;
   align-items: stretch;
@@ -379,7 +639,7 @@ button:disabled:active { transform: none; }
   left: 0;
   right: 0;
   height: 120px;
-  background: var(--nav-bg);
+  background: rgba(255, 255, 255, 0.94);
   pointer-events: none;
 }
 
@@ -388,52 +648,48 @@ button:disabled:active { transform: none; }
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
-  color: var(--text-muted);
-  font-family: var(--font-body);
-  font-size: 0.65rem;
+  gap: 4px;
+  width: auto;
+  min-width: 56px;
+  padding: 0 6px;
+  background: none;
+  color: var(--dampad);
+  font-size: 0.68rem;
   font-weight: 500;
   letter-spacing: 0;
-  padding: 0 6px;
-  min-width: 56px;
-  width: auto;
-  background: none;
-  transition: color 0.2s;
 }
-.nav-item.active { color: var(--accent-ink); font-weight: 600; }
-/* Prick för färdiga receptförslag. Toasten kan hinna ersättas av en annan;
-   det här beskedet står kvar tills man tittat. */
+.nav-item:active { background: none; }
+.nav-item.active { color: var(--gron); font-weight: 600; }
 .nav-item .nav-dot {
   display: inline-block;
   width: 5px;
   height: 5px;
   margin-left: 4px;
-  vertical-align: 2px;
+  vertical-align: 1px;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--gron);
 }
 
-/* Upphöjd skannerknapp i mitten */
+/* Skannerknappen: en rundad rektangel, inte en flytande cirkel med ring.
+   Ringen var en 2010-talsmanér som daterade hela baren. */
 .scan-nav-btn {
-  width: 52px;
-  height: 52px;
-  min-width: 52px;
-  border-radius: 50%;
-  padding: 0;
-  background: var(--accent);
-  color: #fff;
+  width: 58px;
+  min-width: 58px;
+  height: 42px;
   align-self: center;
-  transform: translateY(-8px);
-  box-shadow: 0 0 0 4px var(--bg-base), 0 6px 14px rgba(15, 108, 126, 0.38);
+  padding: 0;
+  border-radius: 14px;
+  background: var(--gron);
+  color: #fff;
   flex-shrink: 0;
 }
-.scan-nav-btn:active { transform: translateY(-8px) scale(0.94); }
+.scan-nav-btn:active { background: var(--gron-tryck); }
 
-/* Bottom sheet — en lyst yta, inte appens mark */
+/* ---- Bottenark ---- */
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(16, 23, 25, 0.42);
+  background: rgba(23, 25, 27, 0.4);
   z-index: 30;
   display: flex;
   align-items: flex-end;
@@ -442,747 +698,183 @@ button:disabled:active { transform: none; }
   animation: fadeIn 0.2s forwards;
 }
 .modal-sheet {
-  background: var(--bg-surface);
+  background: var(--mark);
   width: 100%;
   max-width: 480px;
-  max-height: 90dvh;
+  max-height: 92dvh;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
-  border-radius: 22px 22px 0 0;
-  padding: var(--space-3) var(--space-6) var(--space-6);
-  padding-bottom: calc(var(--space-6) + env(safe-area-inset-bottom, 24px));
+  border-radius: 24px 24px 0 0;
+  padding: 10px var(--sida) 24px;
+  padding-bottom: calc(24px + env(safe-area-inset-bottom, 20px));
   transform: translateY(100%);
-  animation: slideUp 0.35s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+  animation: slideUp 0.34s cubic-bezier(0.32, 0.72, 0, 1) forwards;
 }
 .modal-sheet::before {
   content: '';
   display: block;
-  width: 36px;
+  width: 38px;
   height: 4px;
-  background: var(--border-hover);
+  background: var(--linje-stark);
   border-radius: 2px;
-  margin: 0 auto 20px;
+  margin: 0 auto 18px;
 }
-/* Arkets huvud speglar bandet i kön — samma monogram, samma nedräkning i mono. */
-.ark-huvud {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  margin-bottom: var(--space-5);
+.ark-stang {
+  position: absolute;
+  top: 14px;
+  right: var(--sida);
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--sank);
+  color: var(--dampad);
+  z-index: 1;
 }
-.ark-huvud h2 { margin-bottom: 3px; }
-.ark-varm { color: var(--varm) !important; }
+.ark-stang:active { background: var(--linje-stark); color: var(--black); }
+.modal-sheet { position: relative; }
+/* Rubriken får inte hamna under krysset. */
+.ark-huvud, .modal-sheet > h2:first-of-type { padding-right: 42px; }
 
 .sheet-cta {
   position: sticky;
   bottom: 0;
-  margin-top: 8px;
-  box-shadow: 0 -16px 20px -6px var(--bg-surface);
+  margin-top: 14px;
+  box-shadow: 0 -18px 22px -6px var(--mark);
 }
 
 @keyframes fadeIn { to { opacity: 1; } }
 @keyframes slideUp { to { transform: translateY(0); } }
 
-/* ════════════════════════════════════════════════════════════════════════
-   KÖN — inte skåpet
-
-   Den gamla vyn ritade en möbel: tre luckor som segmentkontroll, en låda med
-   hyllor och ett rutnät av lika stora rutor. ~290 px krom som aldrig ändrades,
-   och den kunde inte svara på appens viktigaste fråga — vad brådskar? — utan
-   att man öppnade en lucka i taget.
-
-   Nu är den lodräta axeln tid. Skärmytan fördelas efter hur mycket varan
-   förtjänar: ett passerat band får 56 px bild och två beslut, en vara som
-   håller sig får en bricka. Det är hierarkin, och den är regeln som gör att
-   det här inte går att förväxla med ett rutnät.
-   ════════════════════════════════════════════════════════════════════════ */
-
-/* Banden och streckkoden bryter ur .content-area:s sidpadding och går kant till
-   kant. En slab som når ut i kanten läser som en yta, inte som ett kort på en
-   yta — och det är hela skillnaden mot rutnätet den ersätter. */
-/*
-  Instrumentpanelen. Datum, sök, lägg till och streckkoden i ett mörkt block
-  som går ut i alla tre kanterna och upp under statusraden.
-
-  Tidigare svävade den mörka raden ensam mitt i en ljus sida och läste som en
-  rand. Nu har appen en arkitektur: ett mörkt instrument överst, en ljus
-  arbetsyta under. Det är också appens enda mörka yta — spenderar man svärtan
-  på två ställen slutar den betyda något.
-*/
-.instrument {
-  margin: 0 calc(var(--space-5) * -1) var(--space-5);
-  padding: var(--space-4) var(--space-4) 12px;
-  background: var(--natt);
-  border-radius: var(--radius);
-}
-/*
-  Bara när panelen faktiskt ligger överst drar den upp sig under statusraden.
-
-  Ligger lagringsvarningen före — vilket den gör på just den deploy utan Turso
-  som varningen finns för — hade den negativa marginalen dragit det mörka
-  blocket rakt ovanpå bannern och gömt den, samtidigt som panelen ändå inte nått
-  skärmkanten. En regel som förutsätter att man är först måste fråga om man är
-  det.
-*/
-.content-area > .instrument:first-child {
-  margin-top: calc((var(--space-5) + env(safe-area-inset-top, 0px)) * -1);
-  padding-top: calc(var(--space-4) + env(safe-area-inset-top, 0px));
-  border-radius: 0 0 var(--radius) var(--radius);
-}
-.instrument-head {
+/* Arkets huvud speglar raden man tryckte på. */
+.ark-huvud {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  margin-bottom: 14px;
+  gap: 12px;
+  margin-bottom: 22px;
 }
-/* Dagens datum, inte appens namn. Det är referenspunkten för varenda
-   "om 3 dagar" på sidan — och till skillnad från en rubrik ändras det. */
-.instrument-date {
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  font-weight: 500;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.62);
-}
-.instrument-actions { display: flex; align-items: center; gap: 8px; }
+.ark-huvud h2 { margin-bottom: 3px; }
+.ark-under { font-size: 0.85rem; color: var(--dampad); }
+.ark-varm { color: var(--rod); }
 
-.ikon-mork {
-  width: 38px;
-  min-width: 38px;
-  height: 38px;
-  padding: 0;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.9);
-}
-.ikon-mork:active { background: rgba(255, 255, 255, 0.2); }
-.ikon-primar { background: var(--is); color: #fff; }
-.ikon-primar:active { background: #1287A0; }
-
-/* Sökfältet bor i panelen och tar streckkodens plats medan man söker — två
-   instrument på samma yta samtidigt hade varit ett för mycket. */
-.instrument-sok {
-  margin: 0;
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.18);
-  color: #fff;
-}
-/* 0.55 och inte 0.45: fältet har en egen 8%-vit fyllning som ljusar upp ytan
-   under texten, så 0.45 landade på 4,26:1 — under kravet. */
-.instrument-sok::placeholder { color: rgba(255, 255, 255, 0.55); }
-.instrument-sok:focus {
-  border-color: rgba(255, 255, 255, 0.5);
-  box-shadow: none;
-}
-
-/* ---- Streckkoden ----
-   Kylskåpets framtid ritad som den kod appen är byggd för att läsa. Mörk yta
-   med flit: det är instrumentet, inte sidan, och det är också insidan av ett
-   stängt skåp. Sidans enda mörka element — därför också dess fokuspunkt. */
-/* Ligger inuti .instrument och behöver därför varken egen bakgrund eller egna
-   marginaler — panelen bär båda. */
-.rail { padding: 0; }
-.rail-plot {
-  display: flex;
-  align-items: flex-end;
-  gap: 10px;
-  height: 44px;
-}
-.rail-days {
-  flex: 1;
-  display: flex;
-  align-items: flex-end;
-  gap: 1px;
-  height: 100%;
-  min-width: 0;
-}
-/* Senare och utan datum är egna sorters svar, inte dagar — därför avskilda
-   från skalan av en linje i stället för hopklumpade i högerkanten. */
-.rail-aside {
-  display: flex;
-  align-items: flex-end;
-  gap: 4px;
-  height: 100%;
-  padding-left: 10px;
-  border-left: 1px solid rgba(255, 255, 255, 0.16);
-}
-
-.rail-col {
-  flex: 1;
-  min-width: 0;
-  height: 100%;
-  padding: 0;
-  width: auto;
-  background: none;
-  border-radius: 0;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  transition: none;
-}
-.rail-col-vid { flex: 0 0 12px; }
-.rail-col:active { transform: none; }
-.rail-col:disabled { opacity: 1; }
-/* Tomma dagar får en punkt i stället för ingenting: skalan ska synas även där
-   kylskåpet är tyst, och en punkt läser som en tom position i koden. */
-.rail-tom::after {
-  content: '';
-  display: block;
-  width: 5px;
-  height: 2px;
-  border-radius: 1px;
-  background: rgba(255, 255, 255, 0.18);
-}
-/*
-  Fast strecktjocklek, inte kolumnbredd. En stapel som fyller sin kolumn blir
-  ett stapeldiagram; ett smalt streck med luft omkring blir en streckkod — och
-  det är hela poängen med att just den här appen ritar sin data så här.
-*/
-.rail-bar {
-  display: block;
-  width: 5px;
-  min-height: 3px;
-  border-radius: 1px;
-  background: rgba(255, 255, 255, 0.42);
-  transition: height 0.35s cubic-bezier(0.32, 0.72, 0, 1);
-}
-/* Samma regel som i resten av appen: värme betyder förfall. */
-.rail-expired .rail-bar,
-.rail-today .rail-bar { background: #E4573B; }
-.rail-soon .rail-bar { background: #E8A33D; }
-.rail-week .rail-bar { background: #8FC5D0; }
-/* Längre fram är varken bra eller dåligt — det ska synas men inte höras. */
-.rail-senare .rail-bar { background: rgba(255, 255, 255, 0.3); }
-/* Utan datum är en uppgift, inte ett tillstånd. Därför accentfärgen. */
-.rail-utan .rail-bar { background: #3FA8BC; }
-
-.rail-axis {
-  display: flex;
-  gap: 10px;
-  margin-top: 8px;
-  font-family: var(--font-mono);
-  font-size: 0.54rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.45);
-}
-.rail-axis-days {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  justify-content: space-between;
-}
-.rail-axis-aside {
-  display: flex;
-  gap: 4px;
-  padding-left: 10px;
-}
-.rail-axis-aside span { flex: 0 0 12px; text-align: center; }
-.rail-now { color: rgba(255, 255, 255, 0.9); }
-.rail-now::before {
-  content: '';
-  display: inline-block;
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: #fff;
-  margin-right: 4px;
-  vertical-align: 1px;
-}
-
-/* ---- Sektionsetikett ----
-   Mono-versaler med en linje som tar upp resten av raden. Etiketten är
-   maskinens namn på en grupp, och antalet är dess avläsning. */
-.eyebrow {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: var(--space-6) 0 var(--space-3);
-}
-.eyebrow::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: var(--border-color);
-}
-.eyebrow-n {
-  font-family: var(--font-mono);
-  font-size: 0.68rem;
-  color: var(--text-secondary);
-  letter-spacing: 0;
-}
-section:first-of-type .eyebrow { margin-top: 0; }
-
-/* ---- Bandet: en vara som kräver ett beslut ----
-   Radie 0 och kant till kant. Ett kort med rundade hörn och skugga hade gjort
-   det till ett objekt bland andra; en slab är en yta man agerar på. */
-/*
-  En vara = en rad, kant till kant. Hårfina skiljelinjer inuti gruppen i stället
-  för glapp: raderna hör ihop, och 3px-glappen fick dem att läsa som lösryckta
-  kort. Gruppen får i stället luft omkring sig.
-*/
-.band {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin-left: calc(var(--space-5) * -1);
-  margin-right: calc(var(--space-5) * -1);
-  padding: 10px var(--space-4) 10px var(--space-5);
-  background: var(--bg-elevated);
-  border-bottom: 1px solid var(--border-color);
-  animation: bandIn 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
-}
-.band:last-child { border-bottom: none; }
-
-/* Raderna reser sig när kön ritas. Det gör inte listan snabbare, men det visar
-   att den är räknad just nu och inte hämtad ur en cache. */
-@keyframes bandIn {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: none; }
-}
-
-.band-head {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  width: auto;
-  padding: 0;
-  background: none;
-  border-radius: 0;
-  text-align: left;
-  font-family: var(--font-body);
-  font-size: 1rem;
-  font-weight: 400;
-  letter-spacing: 0;
-  color: var(--text-primary);
-}
-.band-head:active { transform: none; opacity: 0.6; }
-
-.band-img {
-  flex-shrink: 0;
-  display: grid;
-  place-items: center;
-  border-radius: 10px;
-  background: var(--bg-alt);
-  color: var(--text-muted);
-  overflow: hidden;
-}
-/* Brickan bär brådskan. Svaga toner med flit: den ska läsas i ögonvrån när man
-   sveper förbi listan, inte konkurrera med nedräkningen bredvid. */
-.img-expired, .img-today { background: rgba(179, 58, 34, 0.12); }
-.img-expired .band-mono, .img-today .band-mono { color: var(--varm); opacity: 0.75; }
-.img-soon { background: rgba(201, 116, 28, 0.15); }
-.img-soon .band-mono { color: var(--ljum-ink); opacity: 0.75; }
-.band-img img { max-width: 100%; max-height: 100%; object-fit: contain; }
-/* Monogrammet är varans ansikte när bilden saknas. Displayfonten med tight
-   spärr gör det till ett märke, inte till text som råkat hamna i en ruta. */
-.band-mono {
-  font-family: var(--font-display);
-  font-weight: 700;
-  letter-spacing: -0.04em;
-  color: var(--text-secondary);
-  opacity: 0.6;
-}
-
-.band-text { flex: 1; min-width: 0; }
-.band-name {
-  display: block;
-  font-family: var(--font-display);
-  font-size: 1.06rem;
-  font-weight: 600;
-  letter-spacing: -0.022em;
-  line-height: 1.2;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-/* Underraden är maskinens sammanfattning: nedräkning, antal, plats. Mono och
-   spärrad, och färgen bär brådskan så att texten inte behöver skrika. */
-.band-when {
-  display: block;
-  margin-top: 4px;
-  font-family: var(--font-mono);
-  font-size: 0.63rem;
-  font-weight: 500;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  /* Får radbryta. Med tre ikonknappar till höger är textkolumnen 151 px på en
-     375px-skärm, och "om 3 dagar · 2 st · Skafferiet" behöver 195 — med nowrap
-     försvann platsen tyst, vilket är just den uppgift raden finns för. */
-  overflow-wrap: anywhere;
-}
-.band-expired .band-when,
-.band-today .band-when { color: var(--varm); }
-.band-soon .band-when { color: var(--ljum-ink); }
-
-.band-actions {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  flex-shrink: 0;
-}
-/*
-  Besluten som ikoner. Tre etiketterade knappar per band gav femton grå
-  rektanglar per skärm och tvingade upp bandet till ~150 px — man såg två
-  beslut i taget i en vy vars hela syfte är att visa alla. Ikonerna är 40 px
-  tryckytor med aria-etiketter, och de etiketterade varianterna finns kvar i
-  varans kort ett tryck bort.
-*/
-.ikon-act {
-  width: 40px;
-  min-width: 40px;
-  height: 40px;
-  padding: 0;
-  border-radius: 50%;
-  background: none;
-  color: var(--text-muted);
-  transition: background 0.15s, color 0.15s;
-}
-.ikon-act:active { background: var(--bg-base); color: var(--text-primary); }
-.ikon-act-warm:active { background: var(--danger-soft); color: var(--varm); }
-/* width: auto är inte kosmetik. Bas-knappen sätter width: 100%, och med
-   flex-basis auto blir den bredden utgångsläget — knappen åt hela raden och
-   tryckte ut varunamnet ur skärmen. */
-.act-date {
-  flex: 0 0 auto;
-  width: auto;
-  padding: 8px 12px;
-  font-size: 0.78rem;
-  color: var(--accent-ink);
-  background: var(--accent-soft);
-}
-
-/* ---- Raden: veckans varor ----
-   Inget beslut krävs i dag, så inga knappar. De ska gå att överblicka. */
-.row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin-left: calc(var(--space-5) * -1);
-  margin-right: calc(var(--space-5) * -1);
-  padding: 9px var(--space-4) 9px var(--space-5);
-  background: var(--bg-elevated);
-  border-bottom: 1px solid var(--border-color);
-}
-.row:last-child { border-bottom: none; }
-.row-head {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  padding: 0;
-  background: none;
-  border-radius: 0;
-  text-align: left;
-  font-family: var(--font-body);
-  font-size: 1rem;
-  font-weight: 400;
-  letter-spacing: 0;
-  color: var(--text-primary);
-}
-.row-head:active { transform: none; opacity: 0.6; }
-.row-text { flex: 1; min-width: 0; }
-.row-name {
-  display: block;
-  font-family: var(--font-display);
-  font-size: 0.95rem;
-  font-weight: 500;
-  letter-spacing: -0.015em;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.row .band-when { margin-top: 2px; font-size: 0.6rem; }
-
-/* ---- Håller sig ----
-   Här är frågan inte "vad ska jag äta" utan "har jag senap hemma", och då är
-   utrymmet rätt ordningsprincip igen. Brickor: tätast av allt, för det här är
-   inget man läser rad för rad. */
-.stash-group { margin-bottom: var(--space-4); }
-.stash-head {
-  display: flex;
-  align-items: baseline;
-  gap: 7px;
-  margin-bottom: 9px;
-  font-family: var(--font-mono);
-  font-size: 0.62rem;
-  font-weight: 500;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-.stash-head span { color: var(--text-secondary); letter-spacing: 0; }
-.stash-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.chip-item {
-  width: auto;
-  padding: 8px 12px;
-  border-radius: 100px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-color);
-  color: var(--text-primary);
-  font-family: var(--font-body);
-  font-size: 0.82rem;
-  font-weight: 400;
-  letter-spacing: 0;
-  gap: 6px;
-}
-.chip-item:active { background: var(--bg-surface-hover); }
-.chip-count {
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  color: var(--text-muted);
-}
-
-.summa {
-  margin-top: var(--space-6);
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--border-color);
-  font-family: var(--font-mono);
-  font-size: 0.62rem;
-  font-weight: 500;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-
-.tomt {
-  text-align: center;
-  padding: var(--space-8) var(--space-4);
-  color: var(--text-muted);
-  font-size: 0.9rem;
-  line-height: 1.7;
-}
-.tomt p { color: inherit; }
-/* Att inget brådskar är också ett svar, och det ska synas som ett lugnt
-   besked och inte som en tom sida. */
-.lugnt {
-  margin: var(--space-6) 0 var(--space-4);
-  padding: var(--space-5);
-  text-align: center;
-  background: var(--bg-elevated);
-  border-radius: var(--radius);
-  font-family: var(--font-mono);
-  font-size: 0.68rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-
-/* ---- Formulärfält ---- */
-.stepper { display: flex; align-items: center; gap: var(--space-3); }
-.stepper button { width: 46px; min-width: 46px; padding: 12px 0; }
-/* Egen font-family i stället för klassen .mono: den står 500 rader längre ner
-   med samma specificitet och tog över font-size, så antalet renderades i
-   0.85rem trots regeln här. */
-.stepper-value {
-  font-family: var(--font-mono);
-  font-size: 1.15rem;
-  min-width: 32px;
-  text-align: center;
-}
-
-.chips { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: var(--space-3); }
-.chip {
-  width: auto;
-  padding: 9px 13px;
-  border-radius: 100px;
-  font-family: var(--font-body);
-  font-size: 0.82rem;
-  font-weight: 500;
-  letter-spacing: 0;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-hover);
-  color: var(--text-primary);
-}
-.chip-on {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
-  font-weight: 600;
-}
-
-.btn-square {
-  width: 52px;
-  min-width: 52px;
-  padding: 0;
-  flex-shrink: 0;
-}
-
-.btn-round-accent {
-  width: 42px;
-  min-width: 42px;
-  height: 42px;
-  padding: 0;
-  border-radius: 50%;
-  background: var(--accent);
-  color: #fff;
-  box-shadow: 0 3px 10px rgba(15, 108, 126, 0.32);
-}
-
-.link-btn {
-  width: auto;
-  padding: 0;
-  background: none;
-  color: var(--accent-ink);
-  font-family: inherit;
-  font-size: inherit;
-  font-weight: 600;
-  letter-spacing: 0;
-  text-decoration: underline;
-}
-
-.field-hint {
-  font-size: 0.78rem;
-  color: var(--text-muted);
-  margin: 8px 0 var(--space-4);
-}
-/* Texten börjar med fmtExpiry:s gemena verb ("gick ut för 2 dagar sedan").
-   Versalen hör till meningen, inte till funktionen som formaterar datum. */
-.field-hint::first-letter { text-transform: uppercase; }
-
-/* Namnförslag ur produktcachen */
-.suggestions {
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-  margin-bottom: var(--space-3);
-  box-shadow: var(--shadow-card);
-}
-.suggestion {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 9px 11px;
-  background: none;
-  border-radius: 0;
-  color: var(--text-primary);
-  font-family: var(--font-body);
-  font-size: 1rem;
-  font-weight: 400;
-  letter-spacing: 0;
-}
-.suggestion + .suggestion { border-top: 1px solid var(--border-color); }
-.suggestion:active { background: var(--bg-surface-hover); }
-.suggestion .item-name, .suggestion .item-sub { display: block; }
-
-.picked {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 11px;
-  background: var(--accent-soft);
-  border-radius: var(--radius-sm);
-  margin-bottom: var(--space-4);
-}
-.picked .item-sub { display: inline-flex; align-items: center; gap: 5px; color: var(--accent-ink); }
-
-/* Rad med avbockningsbara förslag (fotoigenkänningen) */
-/* Raden är en <button>, så knappstilarna måste tas tillbaka: vänsterställd
-   text, brödtypsnitt och normal vikt. */
+/* ---- Listrader i ark ---- */
 .item-row {
   display: flex;
   align-items: center;
   justify-content: flex-start;
   text-align: left;
-  gap: 10px;
+  gap: 12px;
   width: 100%;
-  padding: 9px 11px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  color: var(--text-primary);
-  font-family: var(--font-body);
+  padding: 10px 12px;
+  background: var(--yta);
+  border: 1px solid var(--linje);
+  border-radius: var(--r-kontroll);
+  color: var(--black);
+  font-family: var(--font-ui);
   font-size: 1rem;
   font-weight: 400;
-  letter-spacing: 0;
-  cursor: pointer;
 }
-.item-row:active { background: var(--bg-surface-hover); transform: none; }
-/* Bocken: ifylld = vald. Fylld yta tål vit text, till skillnad från text i
-   samma färg — det är hela poängen med att --is duger till bådadera. */
+.item-row:active { background: var(--yta-tryck); }
 .check-box {
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
   flex-shrink: 0;
-  border-radius: var(--radius-xs);
   display: grid;
   place-items: center;
-  background: var(--bg-sunken);
+  border-radius: 9px;
+  background: var(--sank);
   color: transparent;
   transition: background 0.15s, color 0.15s;
 }
-.check-box.on { background: var(--accent); color: #fff; }
+.check-box.on { background: var(--gron); color: #fff; }
 
-.thumb-sm { width: 34px; height: 34px; border-radius: 6px; }
-.thumb-sm img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.item-name { font-family: var(--font-display); font-weight: 600; font-size: 0.98rem; letter-spacing: -0.015em; }
+.item-sub { font-size: 0.83rem; color: var(--dampad); }
+.count-badge {
+  flex-shrink: 0;
+  padding: 3px 10px;
+  border-radius: var(--r-piller);
+  background: var(--sank);
+  color: var(--dampad);
+  font-size: 0.82rem;
+}
 
 .thumb {
   width: 44px;
   height: 44px;
-  border-radius: var(--radius-xs);
-  background: var(--bg-alt);
-  object-fit: contain;
   flex-shrink: 0;
   display: grid;
   place-items: center;
-  color: var(--text-muted);
+  border-radius: var(--r-kontroll);
+  background: var(--sank);
+  color: #A8AEB2;
   overflow: hidden;
 }
+.thumb img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.thumb-sm { width: 34px; height: 34px; border-radius: 9px; }
 
-.item-name { font-family: var(--font-display); font-weight: 500; font-size: 0.97rem; letter-spacing: -0.01em; }
-.item-sub { font-size: 0.78rem; color: var(--text-muted); }
-
-.count-badge {
-  font-family: var(--font-mono);
-  font-size: 0.78rem;
-  color: var(--text-secondary);
-  background: var(--bg-alt);
-  border-radius: 100px;
-  padding: 3px 9px;
-  flex-shrink: 0;
+/* Namnförslag ur produktcachen */
+.suggestions {
+  background: var(--yta);
+  border: 1px solid var(--linje);
+  border-radius: var(--r-kontroll);
+  overflow: hidden;
+  margin: 8px 0 14px;
+  box-shadow: var(--skugga);
 }
+.suggestion {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  padding: 10px 12px;
+  background: none;
+  border-radius: 0;
+  text-align: left;
+  color: var(--black);
+  font-family: var(--font-ui);
+  font-size: 1rem;
+  font-weight: 400;
+}
+.suggestion + .suggestion { box-shadow: inset 0 1px 0 var(--linje); }
+.suggestion:active { background: var(--yta-tryck); }
+.suggestion .item-name, .suggestion .item-sub { display: block; }
 
+.picked {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 10px 12px;
+  background: var(--gron-tunn);
+  border-radius: var(--r-kontroll);
+  margin-bottom: 18px;
+}
+.picked .item-sub { display: inline-flex; align-items: center; gap: 5px; color: var(--gron); }
+
+/* ---- Banner ---- */
 .banner {
   display: flex;
   align-items: center;
-  gap: 10px;
-  border-radius: var(--radius-sm);
+  gap: 11px;
   padding: 13px 15px;
-  margin-bottom: var(--space-4);
-  font-size: 0.88rem;
+  margin-bottom: 16px;
+  border-radius: var(--r-kontroll);
+  font-size: 0.9rem;
   font-weight: 500;
+  line-height: 1.4;
 }
-/*
-  Bannerna har egna, ogenomskinliga färger i stället för --danger-soft/--warn-soft.
-  De mjuka tonerna är alfa över vad som råkar ligga under, och på appens
-  bakgrund (--stal) landade lagringsvarningen på 4,07:1 — under kravet, och
-  därmed appens sämst läsbara text trots att det är den som säger att maten kan
-  försvinna. Här är ytan given och kontrasten räknad: 6,8:1 för båda.
-*/
-.banner-warn { background: #FBEEDC; color: #7A4508; border: 1px solid #A87B2E; }
-.banner-danger { background: #F7E6E2; color: #8E2D18; }
-/* Bannern som knapp: den ärver knappens centrering och displayfont, och
-   varken det ena eller det andra hör hemma i en varningstext. */
+.banner-warn { background: var(--barnsten-tunn); color: #7A4508; border: 1px solid #E0BA7C; }
+.banner-danger { background: var(--rod-tunn); color: #8E2D18; border: 1px solid #E3A899; }
 .banner-btn {
+  width: 100%;
   justify-content: flex-start;
   text-align: left;
-  font-family: var(--font-body);
+  font-family: var(--font-ui);
   letter-spacing: 0;
-  /* Två ljusa ytor kan aldrig nå 3:1 mot varandra, så kanten får bära
-     avgränsningen. #BA6650 ger 3,35:1 mot appens bakgrund — kravet för en
-     kontrolls yttre gräns. */
-  border: 1px solid #BA6650;
 }
-.banner-btn:active { transform: none; background: #F0D6D0; }
+.banner-btn:active { background: #F6E1DC; }
 
 /* ---- Skanner ----
    Kameravyn förblir mörk oavsett tema: det är en sökare, inte en sida. */
@@ -1207,326 +899,220 @@ section:first-of-type .eyebrow { margin-top: 0; }
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: calc(var(--space-4) + env(safe-area-inset-top, 0px)) var(--space-4)
-           calc(var(--space-6) + env(safe-area-inset-bottom, 0px));
+  padding: calc(16px + env(safe-area-inset-top, 0px)) var(--sida)
+           calc(24px + env(safe-area-inset-bottom, 0px));
 }
-/* Siktrutan: en ljus ram mitt i en nedtonad bild, så man vet var koden ska hamna */
-.scanner-frame {
-  flex: 1;
-  display: grid;
-  place-items: center;
-  pointer-events: none;
-}
+.scanner-frame { flex: 1; display: grid; place-items: center; pointer-events: none; }
 .scanner-window {
   width: min(78vw, 300px);
   height: 170px;
-  border-radius: 18px;
+  border-radius: var(--r-kort);
   border: 2px solid rgba(255, 255, 255, 0.85);
-  box-shadow: 0 0 0 100vmax rgba(0, 0, 0, 0.45);
+  box-shadow: 0 0 0 100vmax rgba(0, 0, 0, 0.5);
   transition: border-color 0.15s;
 }
-/* Träffen lyser kallt — den bekräftar, den varnar inte. */
-.scanner-window.hit { border-color: #3FD0E8; }
+.scanner-window.hit { border-color: #4ADE80; }
 .scanner-hint {
   text-align: center;
-  color: rgba(255, 255, 255, 0.85);
-  font-size: 0.85rem;
-  margin-top: 14px;
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 0.9rem;
+  margin-top: 16px;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
   pointer-events: none;
 }
 .scanner-topbar { display: flex; justify-content: space-between; align-items: center; }
 .scanner-topbar button {
-  background: rgba(0, 0, 0, 0.45);
+  background: rgba(0, 0, 0, 0.5);
   color: #fff;
-  backdrop-filter: blur(6px);
-  border-radius: 100px;
+  backdrop-filter: blur(8px);
+  border-radius: var(--r-piller);
   width: auto;
   padding: 10px 16px;
-  font-size: 0.85rem;
+  font-size: 0.88rem;
   font-weight: 500;
 }
 .scan-toast {
-  background: var(--bg-surface);
-  border-radius: var(--radius-sm);
-  padding: 12px;
+  background: var(--yta);
+  border-radius: var(--r-kort);
+  padding: 14px;
   display: flex;
   align-items: center;
   gap: 12px;
-  box-shadow: var(--shadow-lift);
+  box-shadow: var(--skugga-lyft);
 }
-/* Antal och bäst före sätts på plats i sökaren, så en matkasse går att tömma
-   utan att öppna varans kort en gång per förpackning. */
+.scanner .segmented { background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(8px); }
+.scanner .segmented button { color: rgba(255, 255, 255, 0.8); }
+.scanner .segmented button.active { background: #fff; color: var(--black); }
+
 .scan-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-4);
-  margin-bottom: var(--space-3);
+  gap: 16px;
+  margin-bottom: 16px;
 }
-/* Samma form som en <label>; egen klass bara för att skannerns fält inte är
-   formulärfält med etiketter utan textrader i ett kort. */
 .scan-label {
   display: block;
   margin-bottom: 8px;
-  font-family: var(--font-mono);
-  font-size: 0.62rem;
-  font-weight: 500;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--text-muted);
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
 }
 .scan-row .scan-label { margin-bottom: 0; }
-/* Fotoknappen är ett snabbval bland de andra, inte en egen avdelning — det är
-   samma fråga besvarad med kameran i stället för en gissning. */
-.chip-foto {
-  width: auto;
-  padding: 9px 13px;
-  border-radius: 100px;
-  background: var(--accent-soft);
-  border: 1px solid transparent;
-  color: var(--accent-ink);
-  font-family: var(--font-body);
-  font-size: 0.82rem;
-  font-weight: 500;
-  letter-spacing: 0;
-  gap: 6px;
-}
 .scan-last {
   display: flex;
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
-  margin-bottom: var(--space-3);
-  font-size: 0.82rem;
+  margin-bottom: 14px;
+  font-size: 0.85rem;
+  color: var(--dampad);
 }
-.scan-last strong { color: var(--text-primary); }
-/* Platsväljaren ligger ovanpå kameran och behöver egen kontrast */
-.scanner .segmented { background: rgba(0, 0, 0, 0.45); backdrop-filter: blur(6px); }
-.scanner .segmented button { color: rgba(255, 255, 255, 0.8); }
-.scanner .segmented button.active { background: #fff; color: var(--accent-ink); }
+.scan-last strong { color: var(--black); font-weight: 600; }
 
-/* ---- Recept ----
-   Rätten är en slab som resten av appen, inte ett kort. Titeln får den största
-   graden på sidan: det är det enda man faktiskt väljer mellan. */
+/* Redan hemma — en upplysning, inte en varning. Därför tyst. */
+.owned {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 11px 13px;
+  margin-bottom: 14px;
+  background: var(--mark);
+  border-radius: var(--r-kontroll);
+}
+.owned-text { flex: 1 1 55%; min-width: 0; }
+.owned-text h3 { font-size: 0.95rem; }
+.owned-where { margin-top: 2px; font-size: 0.83rem; color: var(--dampad); }
+.owned button { flex: 0 0 auto; }
+
+/* ---- Recept ---- */
 .ratt {
-  margin: 0 calc(var(--space-5) * -1) 3px;
-  padding: var(--space-5);
-  background: var(--bg-elevated);
+  background: var(--yta);
+  border-radius: var(--r-kort);
+  box-shadow: var(--skugga);
+  padding: 18px;
+  margin-bottom: 12px;
 }
 .ratt-huvud {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: var(--space-3);
-  margin-bottom: 6px;
+  gap: 12px;
+  margin-bottom: 8px;
 }
 .ratt-titel {
   font-family: var(--font-display);
-  font-size: 1.3rem;
+  font-size: 1.28rem;
   font-weight: 700;
   letter-spacing: -0.03em;
   line-height: 1.15;
 }
-/* Tiden är en avläsning, inte en rubrik. */
-.ratt-tid {
-  flex-shrink: 0;
-  font-family: var(--font-mono);
-  font-size: 0.66rem;
-  font-weight: 500;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-.ratt-varfor {
-  font-size: 0.9rem;
-  line-height: 1.55;
-  margin-bottom: var(--space-4);
-}
-.ratt-ingress {
-  margin-bottom: var(--space-5);
-  font-size: 0.88rem;
-}
+.ratt-tid { flex-shrink: 0; font-size: 0.85rem; color: var(--dampad); }
+.ratt-varfor { font-size: 0.92rem; margin-bottom: 18px; }
+.ratt-ingress { margin-bottom: 20px; font-size: 0.92rem; }
 
-.ratt-block { margin-bottom: var(--space-4); }
+.ratt-block { margin-bottom: 18px; }
 .ratt-etikett {
-  font-family: var(--font-mono);
-  font-size: 0.6rem;
-  font-weight: 500;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--text-muted);
   margin-bottom: 9px;
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
 }
-.ratt-etikett-varm { color: var(--ljum-ink); }
-
-.ratt-varor { display: flex; flex-wrap: wrap; gap: 6px; }
-/*
-  Varan i rätten bär samma monogram som i kön. Det är kopplingen: man känner
-  igen sin egen spenat i förslaget, och ser på tonen om den brådskar.
-*/
+.ratt-etikett-varm { color: var(--barnsten); }
+.ratt-varor { display: flex; flex-wrap: wrap; gap: 7px; }
 .ratt-vara {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  padding: 5px 11px 5px 5px;
-  border-radius: 100px;
-  background: var(--bg-base);
-  font-size: 0.82rem;
-  color: var(--text-primary);
+  gap: 8px;
+  padding: 6px 13px 6px 6px;
+  border-radius: var(--r-piller);
+  background: var(--mark);
+  font-size: 0.88rem;
 }
-.ratt-mono {
+.ratt-bild {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
   display: grid;
   place-items: center;
-  width: 22px;
-  height: 22px;
-  flex-shrink: 0;
   border-radius: 50%;
-  background: var(--bg-sunken);
-  font-family: var(--font-display);
-  font-size: 0.6rem;
-  font-weight: 700;
-  font-style: normal;
-  letter-spacing: -0.03em;
-  color: var(--text-secondary);
+  background: var(--sank);
+  color: #A8AEB2;
+  overflow: hidden;
 }
-/* Ingrediens utan träff i lagret: tom ring, ingen bokstav att visa. */
-.ratt-mono-tom {
-  background: none;
-  border: 1px dashed var(--border-hover);
-}
-.ratt-vara-utan, .ratt-vara-saknas { color: var(--text-secondary); }
+.ratt-bild img { width: 100%; height: 100%; object-fit: cover; }
+.ratt-vara-utan { padding: 7px 14px; color: var(--dampad); }
 .ratt-vara-saknas {
-  padding: 6px 12px;
-  background: var(--warn-soft);
-  color: var(--ljum-ink);
+  padding: 7px 14px;
+  background: var(--barnsten-tunn);
+  color: var(--barnsten);
 }
 
-/* Stegen numreras av listan själv och hänger i vänsterkanten, så texten
-   linjerar med resten av rätten i stället för att dras in. */
-.ratt-steg {
-  list-style: none;
-  counter-reset: steg;
-  border-top: 1px solid var(--border-color);
-  padding-top: var(--space-4);
-}
+.ratt-steg { list-style: none; counter-reset: steg; border-top: 1px solid var(--linje); padding-top: 16px; }
 .ratt-steg li {
   counter-increment: steg;
   position: relative;
-  padding-left: 26px;
-  margin-bottom: 10px;
-  font-size: 0.88rem;
-  line-height: 1.6;
-  color: var(--text-secondary);
+  padding-left: 28px;
+  margin-bottom: 11px;
+  font-size: 0.92rem;
+  line-height: 1.55;
+  color: var(--dampad);
 }
 .ratt-steg li:last-child { margin-bottom: 0; }
 .ratt-steg li::before {
   content: counter(steg);
   position: absolute;
   left: 0;
-  top: 1px;
-  font-family: var(--font-mono);
-  font-size: 0.68rem;
-  font-weight: 500;
-  color: var(--text-muted);
+  top: 0;
+  width: 19px;
+  height: 19px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--sank);
+  color: var(--dampad);
+  font-size: 0.72rem;
+  font-weight: 600;
 }
 
-/* Fyra segment ska rymmas på en 320px-skärm utan att bryta rad. */
-.meal-picker button { font-size: 0.78rem; padding: 9px 2px; }
-/* Måltidsväljaren i den mörka panelen: nedsänkt spår, ljus vald knapp. */
-.instrument .meal-picker {
-  background: rgba(255, 255, 255, 0.08);
-  margin-bottom: 10px;
-}
-.instrument .meal-picker button { color: rgba(255, 255, 255, 0.7); }
-.instrument .meal-picker button.active {
-  background: #fff;
-  color: var(--natt);
-  box-shadow: none;
-}
-.instrument-cta {
-  margin-top: 10px;
-  background: var(--is);
-  color: #fff;
-}
-.instrument-cta:active { background: #1287A0; }
-.instrument-cta:disabled { opacity: 0.35; }
-.instrument-not {
-  margin-top: 10px;
-  font-size: 0.78rem;
-  line-height: 1.5;
-  color: rgba(255, 255, 255, 0.6);
-}
+.meal-picker { margin-bottom: 14px; }
+.meal-picker button { font-size: 0.85rem; padding: 9px 2px; }
 
-/*
-  Receptloggen. Varje körning är en egen post med sin måltid, sitt önskemål och
-  sin tidsstämpel — utan dem blir loggen en hög rätter man inte minns varför man
-  bad om.
-*/
-.log-entry { margin-top: var(--space-6); }
-.log-head {
-  gap: 8px;
-  margin-bottom: var(--space-2);
-  padding-bottom: 6px;
-  border-bottom: 1px solid var(--border-color);
-}
-/* Önskemålet är användarens egna ord och citeras därför, med en linje som
-   visar var citatet börjar och slutar. */
+.log-entry { margin-top: 28px; }
+.log-head { margin: 0 2px 10px; }
+.log-head h3 { font-size: 1.02rem; }
 .log-wish {
-  border-left: 2px solid var(--accent);
-  padding-left: 10px;
-  margin-bottom: var(--space-3);
-  font-size: 0.85rem;
-  color: var(--text-secondary);
+  margin: 0 2px 12px;
+  padding-left: 11px;
+  border-left: 2px solid var(--gron);
+  font-size: 0.9rem;
 }
 
-/* ---- Redan hemma (i skannern) ----
-   Kall och tyst: att man redan äger varan är en upplysning, inte en varning. */
-.owned {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 8px 10px;
-  padding: 10px 12px;
-  margin-bottom: var(--space-3);
-  background: var(--bg-sunken);
-  border-radius: var(--radius-sm);
+.lugnt {
+  margin: 24px 0;
+  padding: 22px;
+  text-align: center;
+  background: var(--yta);
+  border-radius: var(--r-kort);
+  box-shadow: var(--skugga);
+  color: var(--dampad);
+  font-size: 0.92rem;
 }
-/* Får radbryta i stället för att trunkeras: "1 st i frys…" är ett sämre
-   besked än två rader. Räcker inte bredden ändå hamnar knappen på egen rad. */
-.owned-text { flex: 1 1 60%; min-width: 0; }
-.owned-where {
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  line-height: 1.45;
-  color: var(--text-secondary);
-  margin-top: 2px;
-}
-.owned button { flex: 0 0 auto; }
-.tag {
-  display: inline-block;
-  font-size: 0.72rem;
-  padding: 4px 10px;
-  border-radius: 100px;
-  background: var(--accent-soft);
-  color: var(--accent-ink);
-  margin: 0 6px 6px 0;
-  font-weight: 500;
-}
-/* "saknas" är inte förfall — det är en upplysning. Därför kall och tyst. */
-.tag-missing { background: var(--bg-sunken); color: var(--text-secondary); }
 
 /* QR-koden ritas som en SVG utan egen storlek — utan de här reglerna hamnar
    den pytteliten i vänsterkanten av rutan. */
 .qr-box {
   background: #fff;
   padding: 14px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-kontroll);
   margin-top: 12px;
   display: grid;
   place-items: center;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--linje);
 }
 .qr-box svg {
   width: min(230px, 100%);
@@ -1539,31 +1125,31 @@ section:first-of-type .eyebrow { margin-top: 0; }
 .toast {
   position: fixed;
   left: 50%;
-  bottom: calc(var(--nav-height) + var(--nav-safe) + 16px);
+  bottom: calc(var(--nav-hojd) + var(--nav-safe) + 16px);
   transform: translateX(-50%);
-  background: var(--text-primary);
-  color: var(--insida);
+  background: var(--black);
+  color: #fff;
   padding: 13px 18px;
-  border-radius: 100px;
-  font-size: 0.88rem;
+  border-radius: var(--r-piller);
+  font-size: 0.9rem;
   font-weight: 500;
   z-index: 50;
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 16px;
   max-width: calc(100% - 32px);
-  box-shadow: var(--shadow-lift);
+  box-shadow: var(--skugga-lyft);
   animation: toastIn 0.25s cubic-bezier(0.32, 0.72, 0, 1);
 }
 .toast button {
   width: auto;
   padding: 0;
   background: none;
-  color: #6FD8EC;
-  font-size: 0.88rem;
+  color: #7FDCB4;
+  font-size: 0.9rem;
   font-weight: 600;
 }
-.toast-danger { background: var(--varm); color: #fff; }
+.toast-danger { background: #8E2D18; }
 .toast-danger button { color: #fff; text-decoration: underline; }
 @keyframes toastIn {
   from { opacity: 0; transform: translate(-50%, 12px); }
@@ -1573,7 +1159,7 @@ section:first-of-type .eyebrow { margin-top: 0; }
 .spin { animation: spinAnim 0.9s linear infinite; }
 @keyframes spinAnim { to { transform: rotate(360deg); } }
 
-.mono { font-family: var(--font-mono); font-size: 0.85rem; }
+.mono { font-variant-numeric: tabular-nums; font-size: 0.88rem; word-break: break-all; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
