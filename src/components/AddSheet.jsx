@@ -83,8 +83,7 @@ export default function AddSheet({ defaultLocation = 'fridge', aiOk, onClose, on
         </div>
 
         <label htmlFor="add-name">Vad är det?</label>
-        <input id="add-name" ref={inputRef} autoFocus value={name} placeholder="t.ex. Gräddfil"
-          onChange={e => { setName(e.target.value); setPicked(null); }}
+        <input id="add-name" ref={inputRef} autoFocus value={name}           onChange={e => { setName(e.target.value); setPicked(null); }}
           style={{ marginBottom: suggestions.length ? 4 : 12 }} />
 
         {suggestions.length > 0 && (

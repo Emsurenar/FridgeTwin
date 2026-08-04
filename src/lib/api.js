@@ -12,24 +12,41 @@ export class ApiError extends Error {
 
 const newKey = () => 'ft-' + crypto.randomUUID().replaceAll('-', '').slice(0, 20);
 
+/*
+  Nyckeln måste finnas även när localStorage kastar — i privat läge, med kvoten
+  full, eller när tredjepartslagring är blockerad. Utan fallbacket kraschade
+  appen vid start i stället för att köra sessionen ut.
+*/
+let minnesnyckel = null;
+
 export function getKey() {
-  let key = localStorage.getItem(KEY_STORAGE);
+  let key;
+  try { key = localStorage.getItem(KEY_STORAGE); } catch { key = minnesnyckel; }
   if (!key) {
-    key = newKey();
-    localStorage.setItem(KEY_STORAGE, key);
+    key = minnesnyckel || newKey();
+    minnesnyckel = key;
+    try { localStorage.setItem(KEY_STORAGE, key); } catch { /* sessionen ut */ }
   }
   return key;
 }
 
+/*
+  Tar emot både en naken nyckel och en hel delningslänk. README säger åt en att
+  dela länken, så att klistra in den var det första man försökte — och fick
+  "Ogiltig nyckel" tillbaka.
+*/
 export function setKey(key) {
-  const clean = String(key || '').trim();
+  const raw = String(key || '').trim();
+  const clean = (/[#&]key=([a-zA-Z0-9-]{12,64})/.exec(raw) || [])[1] || raw;
   if (!/^[a-zA-Z0-9-]{12,64}$/.test(clean)) throw new Error('Ogiltig nyckel');
-  localStorage.setItem(KEY_STORAGE, clean);
+  minnesnyckel = clean;
+  try { localStorage.setItem(KEY_STORAGE, clean); } catch { /* sessionen ut */ }
   return clean;
 }
 
 export const resetKey = () => {
-  localStorage.removeItem(KEY_STORAGE);
+  minnesnyckel = null;
+  try { localStorage.removeItem(KEY_STORAGE); } catch { /* sessionen ut */ }
   return getKey();
 };
 

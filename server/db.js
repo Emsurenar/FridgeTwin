@@ -79,6 +79,28 @@ const SCHEMA = [
      removed_at TEXT,
      removed_reason TEXT
    )`,
+  /*
+    Egeninmatade produkter, per hushåll.
+
+    products är en global cache av Open Food Facts, och det är rätt — den datan
+    är publik och delas gärna. Men handinmatade namn låg där också, vilket gav
+    två hål: vilket hushåll som helst kunde skriva över vilken streckkod som
+    helst permanent (uppslaget är cache-first och frågar aldrig OFF igen), och
+    sökningen läckte andra hushålls egna varunamn.
+
+    Egen tabell i stället för en kolumn i products: schemat skapas med
+    CREATE TABLE IF NOT EXISTS, så en tillagd kolumn hade aldrig nått en redan
+    deployad databas.
+  */
+  `CREATE TABLE IF NOT EXISTS household_products (
+     household_id TEXT NOT NULL,
+     barcode TEXT NOT NULL,
+     name TEXT NOT NULL,
+     brand TEXT,
+     quantity TEXT,
+     fetched_at TEXT NOT NULL,
+     PRIMARY KEY (household_id, barcode)
+   )`,
   `CREATE INDEX IF NOT EXISTS idx_items_household ON items (household_id, removed_at)`,
 ];
 

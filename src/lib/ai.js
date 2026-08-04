@@ -16,10 +16,25 @@ export const MODELS = [
   { id: 'claude-haiku-4-5', label: 'Claude Haiku 4.5 · snabbast & billigast' },
 ];
 
-export const getApiKey = () => localStorage.getItem(KEY_STORAGE) || '';
-export const setApiKey = (k) => (k ? localStorage.setItem(KEY_STORAGE, k) : localStorage.removeItem(KEY_STORAGE));
-export const getModel = () => localStorage.getItem(MODEL_STORAGE) || MODELS[0].id;
-export const setModel = (m) => localStorage.setItem(MODEL_STORAGE, m);
+/*
+  localStorage kastar i privat läge och när kvoten är full. getApiKey anropas
+  under Apps rendering, så ett ohanterat fel där blev en vit skärm i stället för
+  en app utan AI. Minnesfallbacket gör att nyckeln åtminstone gäller sessionen ut.
+*/
+const minne = new Map();
+const las = (k) => { try { return localStorage.getItem(k); } catch { return minne.get(k) ?? null; } };
+const skriv = (k, v) => {
+  try {
+    if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v);
+  } catch {
+    if (v === null) minne.delete(k); else minne.set(k, v);
+  }
+};
+
+export const getApiKey = () => las(KEY_STORAGE) || '';
+export const setApiKey = (k) => skriv(KEY_STORAGE, k || null);
+export const getModel = () => las(MODEL_STORAGE) || MODELS[0].id;
+export const setModel = (m) => skriv(MODEL_STORAGE, m);
 
 let serverAi = null;
 export async function checkServerAi() {

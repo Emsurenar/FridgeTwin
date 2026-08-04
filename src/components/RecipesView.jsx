@@ -51,11 +51,8 @@ function Anvander({ uses, items }) {
 }
 
 /*
-  Betyget på en lagad rätt.
-
-  Poängen är inte att samla stjärnor utan att slippa få tillbaka det man inte
-  tycker om: betygen går in i nästa prompt. Därför står det utskrivet vad de
-  gör — annars ser det ut som pynt och ingen sätter något.
+  Betyget på en lagad rätt. Betygen går in i nästa prompt, så modellen slutar
+  föreslå sådant hushållet inte tycker om.
 
   Samma stjärna igen nollställer. Ett felsatt betyg som inte går att ta tillbaka
   hade styrt förslagen för alltid.
@@ -63,9 +60,6 @@ function Anvander({ uses, items }) {
 function Betyg({ title, value, onRate }) {
   return (
     <div className="betyg">
-      <span className="betyg-text">
-        {value ? 'Ditt betyg styr kommande förslag' : 'Lagade du den? Sätt betyg'}
-      </span>
       <div className="betyg-stjarnor" role="group" aria-label={`Betygsätt ${title}`}>
         {[1, 2, 3, 4, 5].map(n => (
           <button key={n} className={`stjarna ${n <= value ? 'stjarna-pa' : ''}`}
@@ -157,7 +151,7 @@ export default function RecipesView({ items, aiOk, busy, log, ratings, onRate, o
 
           <label htmlFor="recipe-wish">Något särskilt?</label>
           <input id="recipe-wish" value={request} maxLength={400}
-            placeholder="t.ex. vegetariskt och snabbt"
+            placeholder="Vegetariskt, snabbt, barnvänligt…"
             onChange={e => setRequest(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && !busy && items.length && run()} />
 

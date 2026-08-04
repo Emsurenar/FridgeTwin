@@ -101,11 +101,27 @@ function Forrad({ items, onSelect }) {
   );
 }
 
+/*
+  Filtret. Tid är fortfarande ordningsprincipen — grupperingen ändras inte — men
+  ibland är frågan "vad har jag i frysen", och då ska man slippa läsa förbi
+  kylens allt. "Allt" är förvalt, så tidsaxeln är kvar som utgångsläge.
+*/
+const FILTER = [
+  { id: 'all', label: 'Allt' },
+  { id: 'fridge', label: 'Kyl' },
+  { id: 'freezer', label: 'Frys' },
+  { id: 'pantry', label: 'Skafferi' },
+];
+
 export default function FridgeView({ items, loading, error, onRetry, onSelect, onAddClick }) {
   const [query, setQuery] = useState('');
   const [searching, setSearching] = useState(false);
+  const [plats, setPlats] = useState('all');
 
   const q = query.trim().toLowerCase();
+  const synliga = useMemo(
+    () => (plats === 'all' ? items : items.filter(i => i.location === plats)),
+    [items, plats]);
 
   // Sökningen går tvärs allt — letar man efter senapen vill man inte först
   // behöva gissa vilket utrymme den står i.
@@ -117,16 +133,18 @@ export default function FridgeView({ items, loading, error, onRetry, onSelect, o
   }, [items, q]);
 
   const { attGora, veckan, utanDatum, resten } = useMemo(() => {
-    const s = queueSections(items);
+    const s = queueSections(synliga);
     return {
       attGora: s.attGora.sort(byExpiry),
       veckan: s.veckan.sort(byExpiry),
       utanDatum: s.utanDatum,
       resten: s.resten.sort(byExpiry),
     };
-  }, [items]);
+  }, [synliga]);
 
-  const lage = useMemo(() => lagesText(items), [items]);
+  // Meningen speglar det man tittar på. Filtrerar man till frysen ska den säga
+  // frysens läge, inte hela kylskåpets.
+  const lage = useMemo(() => lagesText(synliga), [synliga]);
 
   if (loading && !items.length) return <p className="tomt">Öppnar kylskåpet…</p>;
   if (error && !items.length) {
@@ -167,6 +185,17 @@ export default function FridgeView({ items, loading, error, onRetry, onSelect, o
           onChange={e => setQuery(e.target.value)} />
       )}
 
+      {!searching && items.length > 0 && (
+        <div className="segmented platsfilter" role="group" aria-label="Visa utrymme">
+          {FILTER.map(f => (
+            <button key={f.id} className={plats === f.id ? 'active' : ''}
+              aria-pressed={plats === f.id} onClick={() => setPlats(f.id)}>
+              {f.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       {hits ? (
         hits.length
           ? <Grupp titel={hits.length === 1 ? 'Träff' : 'Träffar'} antal={hits.length}>
@@ -175,8 +204,10 @@ export default function FridgeView({ items, loading, error, onRetry, onSelect, o
           : <p className="tomt">Ingen vara heter så.</p>
       ) : !items.length ? (
         <div className="tomt">
-          <p>Skanna en streckkod eller tryck på plus för att lägga in din första vara.</p>
+          <p>Skanna en streckkod eller tryck på plus.</p>
         </div>
+      ) : !synliga.length ? (
+        <p className="tomt">Inget här ännu.</p>
       ) : (
         <>
           {attGora.length > 0 && (
@@ -211,7 +242,8 @@ export default function FridgeView({ items, loading, error, onRetry, onSelect, o
           {resten.length > 0 && <Forrad items={resten} onSelect={onSelect} />}
 
           <footer className="summa">
-            {fmtToday()} · {items.length} varor
+            {fmtToday()} · {synliga.length} {synliga.length === 1 ? 'vara' : 'varor'}
+            {plats !== 'all' && ` av ${items.length}`}
           </footer>
         </>
       )}

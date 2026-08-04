@@ -17,7 +17,16 @@ export default function ItemSheet({ item, aiOk, onClose, onPatch, onRemove, onTo
   const save = async () => {
     setSaving(true);
     try {
-      await onPatch(item.id, { count, location, expiresOn: expiresOn || null });
+      /*
+        Bara ändrade fält. Tidigare skickades alltid ett absolut count räknat
+        på ögonblicksbilden från när arket öppnades — ändrade man bara platsen
+        skrevs någon annans antalsändring över på köpet.
+      */
+      const patch = {};
+      if (count !== item.count) patch.count = count;
+      if (location !== item.location) patch.location = location;
+      if ((expiresOn || null) !== item.expiresOn) patch.expiresOn = expiresOn || null;
+      await onPatch(item.id, patch);
       onClose();
     } finally {
       setSaving(false);

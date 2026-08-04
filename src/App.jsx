@@ -3,7 +3,7 @@ import { Refrigerator, ChefHat, Settings as SettingsIcon, ScanLine, Loader2, Ale
 import * as api from './lib/api';
 import { checkServerAi, aiReady, suggestRecipes } from './lib/ai';
 import { loadLog, addEntry, removeEntry, clearLog, newEntryId } from './lib/recipeLog';
-import { loadMirror, saveMirror, clearMirror, missingFromServer } from './lib/mirror';
+import { loadMirror, saveMirror, missingFromServer } from './lib/mirror';
 import { loadRatings, setRating } from './lib/ratings';
 import FridgeView from './components/FridgeView';
 import RecipesView from './components/RecipesView';
@@ -60,6 +60,7 @@ export default function App() {
   // Spegeln får inte skrivas innan första hämtningen lyckats — annars sparar
   // appen sitt tomma starttillstånd över det som faktiskt fanns.
   const loadedOnce = useRef(false);
+  const loadSeq = useRef(0);
 
   const showToast = useCallback((message, type = 'success', action = null) => {
     clearTimeout(toastTimer.current);
@@ -68,6 +69,10 @@ export default function App() {
   }, []);
 
   const load = useCallback(async () => {
+    // Två hämtningar kan överlappa (mount + visibilitychange, eller ett tryck på
+    // "Försök igen"). Utan sekvensnummer kan ett äldre svar vinna och skriva
+    // över optimistiska ändringar som redan gått igenom.
+    const min = ++loadSeq.current;
     setLoading(true);
     try {
       /*
@@ -81,10 +86,12 @@ export default function App() {
         hushållet medvetet tagit bort.
       */
       const health = await api.getHealth().catch(() => null);
+      if (min !== loadSeq.current) return;
       const durable = health ? Boolean(health.persistent) : null;
       setPersistent(durable);
 
       let fresh = await api.getInventory();
+      if (min !== loadSeq.current) return;
 
       if (durable === false) {
         const missing = missingFromServer(loadMirror(api.getKey()), fresh);
@@ -99,7 +106,15 @@ export default function App() {
       }
 
       setItems(fresh);
-      saveMirror(api.getKey(), fresh);
+      /*
+        Spegeln skrivs bara när vi vet att servern inte är beständig, och aldrig
+        när den skulle krympa en befintlig kopia till noll. Misslyckas health
+        medan lagret svarar tomt — en kall lambda räcker — hade den enda
+        kvarvarande kopian av lagret raderats av sitt eget skyddsnät.
+      */
+      if (durable === false && (fresh.length || !loadMirror(api.getKey()).length)) {
+        saveMirror(api.getKey(), fresh);
+      }
       loadedOnce.current = true;
       setLoadError(null);
     } catch (e) {
@@ -109,7 +124,7 @@ export default function App() {
       setLoadError(e.message);
       showToast(e.message, 'danger');
     } finally {
-      setLoading(false);
+      if (min === loadSeq.current) setLoading(false);
     }
   }, [showToast]);
 
@@ -136,8 +151,8 @@ export default function App() {
   // Spegeln följer lagret. En effekt i stället för ett anrop i varje mutation:
   // det är en plats att ha rätt på, inte sex.
   useEffect(() => {
-    if (loadedOnce.current) saveMirror(api.getKey(), items);
-  }, [items]);
+    if (loadedOnce.current && persistent === false) saveMirror(api.getKey(), items);
+  }, [items, persistent]);
 
   // Servern slår ihop dubbletter, så svaret kan vara antingen en ny rad eller
   // en uppdaterad. Ett enda upsert-mönster täcker båda.
@@ -163,14 +178,28 @@ export default function App() {
 
   const handleAddMany = async (list) => {
     const added = [];
+    let sista;
     for (const payload of list) {
       try {
         const item = await api.addItem(payload);
         upsert(item);
         added.push(item);
-      } catch { /* enstaka fel ska inte stoppa resten */ }
+      } catch (e) {
+        // Ett enstaka fel ska inte stoppa resten — men det får inte heller
+        // tystas. Tidigare sa toasten "0 varor inlagda" i grönt när allt failat.
+        sista = e;
+      }
+    }
+    if (!added.length) {
+      showToast(sista?.message || 'Inget kunde läggas in', 'danger');
+      return false;
+    }
+    if (added.length < list.length) {
+      showToast(`${added.length} av ${list.length} inlagda — resten misslyckades`, 'danger');
+      return true;
     }
     showToast(added.length === 1 ? `${added[0].name} inlagd` : `${added.length} varor inlagda`);
+    return true;
   };
 
   /*
@@ -297,9 +326,9 @@ export default function App() {
 
   const handleKeyChanged = (reset = false) => {
     if (reset) api.resetKey();
-    // Spegeln hör till *det* kylskåpet. Följer den med till en ny nyckel skulle
-    // återläggningen skjuta in det gamla hushållets varor i det nya.
-    clearMirror();
+    // Spegeln bär sin egen nyckel sedan dess, så loadMirror vägrar redan lämna
+    // ut den under fel hushåll. Att radera den här hade förstört det förra
+    // kylskåpets enda lokala kopia i onödan.
     loadedOnce.current = false;
     setItems([]);
     load();

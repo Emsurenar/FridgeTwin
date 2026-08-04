@@ -19,7 +19,9 @@ export default function PhotoButton({ label, busyLabel = 'Läser…', onPhoto, c
     if (!file) return;
     setBusy(true);
     try {
-      onPhoto(await fileToDataUrl(file));
+      // await band tidigare bara fileToDataUrl, så knappen släpptes fri redan
+      // efter bildkonverteringen medan AI-anropet fortfarande pågick.
+      await onPhoto(await fileToDataUrl(file));
     } finally {
       setBusy(false);
     }

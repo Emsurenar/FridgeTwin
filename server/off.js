@@ -8,6 +8,23 @@
 import { db } from './db.js';
 
 const OFF_BASE = 'https://world.openfoodfacts.org/api/v2/product';
+/*
+  Bara https-bilder från Open Food Facts egna värdar. Fältet kommer från en
+  crowdsourcad databas och hamnar i en <img src>; utan kontrollen kunde en
+  redigerad produkt peka den var som helst.
+*/
+function offImage(url) {
+  if (!url) return null;
+  try {
+    const u = new URL(String(url));
+    const ok = u.protocol === 'https:' &&
+      (u.hostname === 'openfoodfacts.org' || u.hostname.endsWith('.openfoodfacts.org'));
+    return ok ? u.href.slice(0, 500) : null;
+  } catch {
+    return null;
+  }
+}
+
 const FIELDS = 'product_name,product_name_sv,generic_name,brands,quantity,image_front_small_url,image_small_url,nutriments';
 const UA = process.env.OFF_USER_AGENT || 'FridgeTwin/1.0 (https://github.com/Emsurenar/FridgeTwin)';
 
@@ -35,7 +52,9 @@ export function normalizeOffProduct(barcode, product) {
     name: name.trim(),
     brand,
     quantity: first(product.quantity),
-    imageUrl: first(product.image_front_small_url, product.image_small_url),
+    // Genom samma kontroll som klientskickade URL:er. Bilden hamnar i en
+    // <img src>, och Open Food Facts är crowdsourcad — fältet är inte vår data.
+    imageUrl: offImage(first(product.image_front_small_url, product.image_small_url)),
     nutriments: Object.values(nutriments).some(v => v !== null) ? nutriments : null,
     source: 'off',
   };

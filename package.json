@@ -1,17 +1,37 @@
 {
-  "name": "fridge-twin",
+  "name": "fridgetwin",
+  "version": "1.0.0",
+  "description": "En digital tvilling av kylskåpet. Skanna streckkoder, håll koll på bäst före-datum och laga mat på det som finns hemma.",
+  "license": "MIT",
+  "author": "Emre Sunar",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Emsurenar/FridgeTwin.git"
+  },
+  "homepage": "https://github.com/Emsurenar/FridgeTwin#readme",
+  "bugs": {
+    "url": "https://github.com/Emsurenar/FridgeTwin/issues"
+  },
+  "keywords": [
+    "pwa",
+    "matsvinn",
+    "streckkod",
+    "kylskåp",
+    "open-food-facts",
+    "anthropic",
+    "svenska"
+  ],
   "private": true,
-  "version": "0.0.0",
   "type": "module",
   "engines": {
     "node": ">=20"
   },
   "scripts": {
-    "dev": "concurrently -k \"PORT=8799 node server.js\" \"vite\"",
+    "dev": "concurrently -k \"PORT=8799 node --env-file-if-exists=.env server.js\" \"vite\"",
     "build": "vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "start": "node server.js",
+    "start": "node --env-file-if-exists=.env server.js",
     "test": "node --test 'test/*.test.mjs'"
   },
   "dependencies": {

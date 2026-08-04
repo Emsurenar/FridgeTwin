@@ -4,9 +4,16 @@
 import express from 'express';
 import Anthropic from '@anthropic-ai/sdk';
 import { db, initDb, ensureHousehold, householdId, newId, usingTurso, lastDbError, tursoHost } from './db.js';
-import { lookupProduct, getCachedProduct, saveProduct, isBarcode } from './off.js';
+import { lookupProduct, getCachedProduct, isBarcode } from './off.js';
 
 const app = express();
+/*
+  Vercel och Render sätter X-Forwarded-For. Utan trust proxy läste rate-limitern
+  headern rå, och då kunde vem som helst rotera den och kringgå spärren helt.
+  Med den här inställningen härleder Express req.ip från det sista betrodda
+  hoppet i stället, vilket klienten inte kan förfalska.
+*/
+app.set('trust proxy', 1);
 // Rejäl gräns: AI-igenkänningen skickar ett base64-kodat foto genom /api/ai.
 app.use(express.json({ limit: '8mb' }));
 
@@ -54,7 +61,7 @@ const cleanCount = (v) => {
   fel. Värdnamn men aldrig token: nog för att se om man klistrat in fel sak i
   fel ruta, utan att läcka något känsligt.
 */
-app.get('/api/health', async (_req, res) => {
+app.get('/api/health', async (req, res) => {
   const turso = {
     configured: usingTurso,
     tokenSatt: Boolean(process.env.TURSO_TOKEN),
@@ -68,11 +75,20 @@ app.get('/api/health', async (_req, res) => {
     ansluten = true;
   } catch { /* felet plockas ur lastDbError nedan */ }
 
+  /*
+    Värdnamn och råa databasfel är felsökningshjälp, inte publik information.
+    I produktion räcker det att säga *att* något är fel; vad det är får man
+    veta med en hushållsnyckel i handen.
+  */
+  const detaljer = isProd && !KEY_RE.test(req.get('x-fridge-key') || '')
+    ? { configured: turso.configured, tokenSatt: turso.tokenSatt, ansluten }
+    : { ...turso, ansluten, fel: lastDbError };
+
   res.json({
     ok: true,
     serverAi: Boolean(process.env.ANTHROPIC_API_KEY),
     persistent: usingTurso && ansluten,
-    turso: { ...turso, ansluten, fel: lastDbError },
+    turso: detaljer,
   });
 });
 
@@ -106,10 +122,22 @@ app.use('/api', (req, res, next) => {
 });
 
 // ---- Produktuppslag ----
-app.get('/api/product/:barcode', async (req, res) => {
+app.get('/api/product/:barcode', requireKey, async (req, res) => {
   const { barcode } = req.params;
   if (!isBarcode(barcode)) return res.status(400).json({ error: 'Ogiltig streckkod' });
   try {
+    // Det hushållet själv lärt in går före OFF: har man döpt om en vara är det
+    // för att OFF:s namn inte dög.
+    const { rows } = await db.execute({
+      sql: 'SELECT * FROM household_products WHERE household_id = ? AND barcode = ?',
+      args: [req.householdId, barcode],
+    });
+    if (rows[0]) {
+      return res.json({
+        barcode, name: rows[0].name, brand: rows[0].brand,
+        quantity: rows[0].quantity, imageUrl: null, source: 'manual',
+      });
+    }
     const product = await lookupProduct(barcode);
     if (!product) return res.status(404).json({ error: 'Okänd streckkod', barcode });
     res.json(product);
@@ -128,10 +156,29 @@ app.get('/api/products', requireKey, async (req, res) => {
   const q = String(req.query.q || '').trim();
   if (q.length < 2) return res.json({ products: [] });
   const like = `%${q.replaceAll('%', '').replaceAll('_', '')}%`;
+  /*
+    Egna först, sedan den globala OFF-cachen. source != 'manual' i andra ledet
+    är hela poängen: utan det läckte sökningen andra hushålls egeninmatade
+    varunamn till vem som helst.
+  */
+  /*
+    Underfrågan är inte kosmetik: efter UNION ALL får ORDER BY bara peka på
+    kolumnnamn i resultatet, inte på uttryck som length(name). Utan omslaget
+    svarade SQLite "2nd ORDER BY term does not match any column".
+  */
   const { rows } = await db.execute({
-    sql: `SELECT * FROM products WHERE name LIKE ? OR brand LIKE ?
-          ORDER BY length(name) ASC, fetched_at DESC LIMIT 8`,
-    args: [like, like],
+    sql: `SELECT barcode, name, brand, quantity, image_url FROM (
+            SELECT barcode, name, brand, quantity, NULL AS image_url, 0 AS ordning,
+                   length(name) AS langd
+            FROM household_products
+            WHERE household_id = ? AND (name LIKE ? OR brand LIKE ?)
+            UNION ALL
+            SELECT barcode, name, brand, quantity, image_url, 1 AS ordning,
+                   length(name) AS langd
+            FROM products
+            WHERE source != 'manual' AND (name LIKE ? OR brand LIKE ?)
+          ) ORDER BY ordning ASC, langd ASC LIMIT 8`,
+    args: [req.householdId, like, like, like, like],
   });
   res.json({
     products: rows.map(r => ({
@@ -147,16 +194,19 @@ app.put('/api/product/:barcode', requireKey, async (req, res) => {
   if (!isBarcode(barcode)) return res.status(400).json({ error: 'Ogiltig streckkod' });
   const name = cleanName(req.body?.name);
   if (!name) return res.status(400).json({ error: 'Namn krävs' });
-  const product = await saveProduct({
-    barcode,
-    name,
-    brand: cleanName(req.body?.brand) || null,
-    quantity: cleanName(req.body?.quantity) || null,
-    imageUrl: null,
-    nutriments: null,
-    source: 'manual',
+  await ensureHousehold(req.fridgeKey);
+
+  const brand = cleanName(req.body?.brand) || null;
+  const quantity = cleanName(req.body?.quantity) || null;
+  await db.execute({
+    sql: `INSERT INTO household_products (household_id, barcode, name, brand, quantity, fetched_at)
+          VALUES (?, ?, ?, ?, ?, ?)
+          ON CONFLICT(household_id, barcode) DO UPDATE SET
+            name = excluded.name, brand = excluded.brand,
+            quantity = excluded.quantity, fetched_at = excluded.fetched_at`,
+    args: [req.householdId, barcode, name, brand, quantity, new Date().toISOString()],
   });
-  res.json(product);
+  res.json({ barcode, name, brand, quantity, imageUrl: null, source: 'manual' });
 });
 
 // ---- Lager ----
@@ -188,7 +238,8 @@ app.get('/api/inventory', requireKey, async (req, res) => {
 
 // Historik för svinnstatistik och "senast förbrukat".
 app.get('/api/history', requireKey, async (req, res) => {
-  const limit = Math.min(Number(req.query.limit) || 100, 500);
+  // LIMIT -1 betyder obegränsat i SQLite, så taket måste ha ett golv också.
+  const limit = Math.min(Math.max(1, Number(req.query.limit) || 100), 500);
   const { rows } = await db.execute({
     sql: `SELECT * FROM items WHERE household_id = ? AND removed_at IS NOT NULL
           ORDER BY removed_at DESC LIMIT ?`,
@@ -205,8 +256,15 @@ app.post('/api/inventory', requireKey, async (req, res) => {
   // Namnet får komma från klienten, annars hämtas det ur produktcachen.
   let { name, brand = null, quantity = null, imageUrl = null } = body;
   if (barcode && !name) {
-    const known = await getCachedProduct(barcode);
-    if (known) ({ name, brand, quantity, imageUrl } = known);
+    const { rows: egna } = await db.execute({
+      sql: 'SELECT * FROM household_products WHERE household_id = ? AND barcode = ?',
+      args: [householdId(req.fridgeKey), barcode],
+    });
+    if (egna[0]) ({ name, brand, quantity } = egna[0]);
+    else {
+      const known = await getCachedProduct(barcode);
+      if (known) ({ name, brand, quantity, imageUrl } = known);
+    }
   }
   name = cleanName(name);
   if (!name) return res.status(400).json({ error: 'Namn krävs' });
@@ -273,7 +331,19 @@ app.post('/api/inventory', requireKey, async (req, res) => {
 const MAX_SYNC = 500;
 
 app.post('/api/inventory/sync', requireKey, async (req, res) => {
-  const incoming = Array.isArray(req.body?.items) ? req.body.items.slice(0, MAX_SYNC) : [];
+  const alla = Array.isArray(req.body?.items) ? req.body.items : [];
+  /*
+    Tyst kapning var farligt: klienten skrev sedan serverns kortare svar
+    tillbaka till spegeln, så det som kapades bort raderades permanent. Nu säger
+    servern ifrån i stället, och klienten låter spegeln vara.
+  */
+  if (alla.length > MAX_SYNC) {
+    return res.status(413).json({
+      error: `För många varor på en gång (${alla.length}, max ${MAX_SYNC})`,
+      max: MAX_SYNC,
+    });
+  }
+  const incoming = alla;
   await ensureHousehold(req.fridgeKey);
 
   let restored = 0;
@@ -295,7 +365,9 @@ app.post('/api/inventory/sync', requireKey, async (req, res) => {
       args: [id, req.householdId, barcode, name,
         cleanName(raw.brand) || null, cleanName(raw.quantity) || null, httpUrl(raw.imageUrl),
         location, cleanCount(raw.count),
-        typeof raw.addedAt === 'string' ? raw.addedAt.slice(0, 40) : new Date().toISOString(),
+        // addedAt är sorteringsnyckel; skräp där sorterar lagret fel för alltid.
+        typeof raw.addedAt === 'string' && !Number.isNaN(Date.parse(raw.addedAt))
+          ? raw.addedAt.slice(0, 40) : new Date().toISOString(),
         expiresOn],
     });
     restored += rowsAffected;
@@ -358,6 +430,9 @@ app.patch('/api/inventory/:id', requireKey, async (req, res) => {
     sets.push('expires_on = ?'); args.push(body.expiresOn || null);
   }
   if (body.openedAt !== undefined) {
+    if (body.openedAt && !isRealDate(body.openedAt)) {
+      return res.status(400).json({ error: 'Ogiltigt öppnat-datum' });
+    }
     sets.push('opened_at = ?'); args.push(body.openedAt || null);
   }
   if (body.name !== undefined) {
@@ -405,16 +480,34 @@ app.post('/api/inventory/:id/restore', requireKey, async (req, res) => {
 // Kopierad från TimeProxy (server/app.js) — samma två spärrar, samma skäl:
 // proxyn spenderar ägarens Anthropic-budget och får därför inte vara öppen.
 const ALLOWED_MODELS = new Set(['claude-opus-4-8', 'claude-sonnet-5', 'claude-haiku-4-5']);
-const anthropic = process.env.ANTHROPIC_API_KEY ? new Anthropic() : null;
+/*
+  Timeout under Vercels funktionstak. SDK:ns standard är tio minuter, och
+  serverless-funktionen dödas långt innan dess — då hinner catch-blocket aldrig
+  svara och klienten får en tom 504 i stället för ett felmeddelande.
+*/
+const anthropic = process.env.ANTHROPIC_API_KEY
+  ? new Anthropic({ timeout: 25000, maxRetries: 1 })
+  : null;
 
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '')
   .split(',').map(s => s.trim()).filter(Boolean);
 
 const isLocal = (host) => /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(host);
 
+const isProd = process.env.NODE_ENV === 'production';
+
 const originAllowed = (req) => {
   const origin = req.get('origin');
-  if (!origin) return true; // curl och en del same-origin-anrop skickar ingen Origin
+  /*
+    Saknad Origin släpptes förr alltid igenom, med motiveringen att curl och
+    en del same-origin-anrop inte skickar headern. Men att utelämna en header
+    är ingen privilegierad handling: kombinerat med att rutten saknade
+    hushållsnyckel var proxyn därmed öppen för vem som helst som hittade
+    deployen — och den spenderar ägarens Anthropic-budget.
+
+    I utveckling är den slappa varianten fortfarande bekväm.
+  */
+  if (!origin) return !isProd;
   if (ALLOWED_ORIGINS.length) return ALLOWED_ORIGINS.includes(origin);
   let host;
   try {
@@ -422,7 +515,7 @@ const originAllowed = (req) => {
   } catch {
     return false;
   }
-  if (isLocal(host)) return true; // Vite (5299) proxar till 8788 i utveckling
+  if (isLocal(host)) return true; // Vite (5399) proxar till 8799 i utveckling
   return host === req.get('host');
 };
 
@@ -435,21 +528,29 @@ const rateLimited = (ip) => {
   const rec = hits.get(ip);
   if (!rec || now - rec.start > RATE_WINDOW_MS) {
     hits.set(ip, { start: now, count: 1 });
-    if (hits.size > 5000) hits.clear();
+    /*
+      Rensa utgångna poster i stället för hits.clear(). Att tömma allt gav en
+      angripare en knapp: 5000 påhittade adresser nollställde räknaren för alla
+      andra, inklusive den man just strypt.
+    */
+    if (hits.size > 5000) {
+      for (const [k, v] of hits) if (now - v.start > RATE_WINDOW_MS) hits.delete(k);
+    }
     return false;
   }
   rec.count += 1;
   return rec.count > RATE_LIMIT;
 };
 
-app.post('/api/ai', async (req, res) => {
+app.post('/api/ai', requireKey, async (req, res) => {
   if (!anthropic) {
     return res.status(501).json({ error: 'Ingen ANTHROPIC_API_KEY på servern' });
   }
   if (!originAllowed(req)) {
     return res.status(403).json({ error: 'Otillåten origin' });
   }
-  const ip = req.headers['x-forwarded-for']?.split(',')[0].trim() || req.ip || 'unknown';
+  // req.ip och inte rå X-Forwarded-For: se trust proxy ovan.
+  const ip = req.ip || 'unknown';
   if (rateLimited(ip)) {
     return res.status(429).json({ error: 'För många AI-anrop. Vänta en stund.' });
   }
@@ -468,6 +569,16 @@ app.post('/api/ai', async (req, res) => {
     console.error('AI proxy error:', e.message);
     res.status(e.status || 500).json({ error: e.message });
   }
+});
+
+/*
+  Sista utposten. Utan den besvarar Express varje ohanterat fel i en
+  route-handler med sin standardsida — HTML plus full stacktrace, i en app
+  vars klient bara kan tolka JSON.
+*/
+app.use((err, _req, res, _next) => {
+  console.error('Ohanterat fel:', err?.message || err);
+  res.status(err?.status || 500).json({ error: 'Serverfel' });
 });
 
 export default app;

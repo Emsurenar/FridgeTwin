@@ -1,6 +1,7 @@
 # FridgeTwin
 
-En digital tvilling av kylskåpet, som mobilapp (PWA). Skanna streckkoden på en
+En digital tvilling av kylskåpet, byggd som mobilwebbapp med manifest och
+hemskärmsstöd. Skanna streckkoden på en
 vara så identifieras den mot Open Food Facts och hamnar i lagret — med plats,
 antal och bäst före-datum. Appen visar vad som brådskar och Claude föreslår vad
 du kan laga på det som faktiskt finns hemma.
@@ -25,7 +26,7 @@ du kan laga på det som faktiskt finns hemma.
 ```bash
 npm install
 npm run dev        # server (:8799) + vite (:5399) samtidigt
-npm test           # utgångslogik, OFF-normalisering och streckkodsavkodning
+npm test           # enhetstester (se test/)
 ```
 
 Utan konfiguration används en lokal SQLite-fil i `data/` — inget molnkonto behövs
@@ -174,8 +175,8 @@ något känsligare.
 ## Kameran kräver HTTPS
 
 `getUserMedia` fungerar bara i säker kontext. `localhost` räknas som säkert, men
-`http://192.168.x.x` gör det inte — testa på telefonen via en deploy, eller kör
-Vite med `@vitejs/plugin-basic-ssl`.
+`http://192.168.x.x` gör det inte. Testa därför skannern på telefonen via en
+deploy — Vercels förhandsdeploy räcker och serverar över HTTPS.
 
 **iOS Safari saknar `BarcodeDetector`** (Chrome och Android har det, WebKit inte).
 Avkodningen sker därför i WebAssembly via [zxing-wasm](https://github.com/Sec-ant/zxing-wasm),
@@ -268,3 +269,32 @@ En tidigare omgång blev teknisk och kall. Det som togs bort:
 Tre värden, inte sex: kort och ark 18px, allt man trycker på 12px, piller runda.
 Blandade radier var det som fick appen att se hopplockad ut.
 
+## Bidra
+
+Issues och pull requests är välkomna. Kör `npm run lint && npm test` innan du
+skickar in — båda ska vara gröna.
+
+Kodkommentarerna är på svenska och förklarar *varför*, inte *vad*. Håll den
+stilen: en kommentar som beskriver koden bredvid sig åldras illa, en som
+beskriver avvägningen bakom den gör det inte.
+
+## Säkerhet
+
+Hushållsnyckeln är en **delningslänk, inte inloggning** — den som har nyckeln
+ser kylskåpet. Det är rätt avvägning för ett matlager men inte för något
+känsligare, och byggs appen ut åt det hållet behövs riktig autentisering.
+
+Deployar du med `ANTHROPIC_API_KEY` på servern gäller tre spärrar på `/api/ai`:
+hushållsnyckel krävs, `Origin` måste finnas och matcha (`ALLOWED_ORIGINS` när
+den är satt, annars samma värd), och det finns en rate limit per IP.
+
+Ingen av dem är vattentät — hushållsnycklar delas, och en beslutsam angripare
+kan skaffa en. **Sätt en spendgräns på nyckeln hos Anthropic.** Det är det enda
+som faktiskt sätter ett tak på kostnaden.
+
+Hittar du ett säkerhetsproblem, öppna ett issue utan känsliga detaljer och
+beskriv resten via mejl.
+
+## Licens
+
+MIT — se [LICENSE](LICENSE).

@@ -20,6 +20,13 @@ import { X } from 'lucide-react';
 export default function Sheet({ title, onClose, children }) {
   const arkRef = useRef(null);
   const komFran = useRef(null);
+  /*
+    onClose är en ny pilfunktion vid varje rendering av App, så en effekt med
+    [onClose] som beroende kördes om hela tiden — och flyttade då fokus tillbaka
+    till arket ur fältet man just skrev i. Refen låter effekten köra en gång.
+  */
+  const stang = useRef(onClose);
+  stang.current = onClose;
 
   useEffect(() => {
     komFran.current = document.activeElement;
@@ -29,7 +36,7 @@ export default function Sheet({ title, onClose, children }) {
     const onKey = (e) => {
       if (e.key === 'Escape') {
         e.stopPropagation();
-        return onClose();
+        return stang.current();
       }
       if (e.key !== 'Tab') return;
 
@@ -56,7 +63,7 @@ export default function Sheet({ title, onClose, children }) {
       const t = komFran.current;
       if (t && document.contains(t)) t.focus();
     };
-  }, [onClose]);
+  }, []);
 
   return (
     <div className="modal-overlay" onClick={onClose}>

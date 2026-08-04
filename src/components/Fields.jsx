@@ -93,7 +93,7 @@ export function ExpiryPicker({ value, onChange, aiOk, onToast }) {
       <p className="field-hint">
         {value
           ? <>{fmtExpiry(value)}. <button className="link-btn" onClick={() => onChange('')}>Ta bort datum</button></>
-          : 'Utan datum hamnar varan under Utan datum, och kan inte påminna om sig själv.'}
+          : 'Utan datum kan varan inte påminna om sig själv.'}
       </p>
     </>
   );

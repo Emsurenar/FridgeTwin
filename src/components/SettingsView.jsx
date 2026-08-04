@@ -125,7 +125,8 @@ export default function SettingsView({ serverAi, persistent, onKeyChanged, onRel
       <div className="panel">
         <label>Anslut till ett annat kylskåp</label>
         <input value={keyInput} onChange={e => setKeyInput(e.target.value)}
-          placeholder="ft-…" autoCapitalize="off" autoCorrect="off" />
+          placeholder="ft-… eller en delad länk"
+          autoCapitalize="off" autoCorrect="off" />
         <button className="btn-ghost" onClick={useKey} disabled={!keyInput.trim()}>Byt nyckel</button>
       </div>
 
@@ -140,7 +141,7 @@ export default function SettingsView({ serverAi, persistent, onKeyChanged, onRel
           <>
             <label>Anthropic API-nyckel</label>
             <input type="password" value={apiKey} onChange={e => saveApiKey(e.target.value)}
-              placeholder="sk-ant-…" autoCapitalize="off" autoCorrect="off" />
+              autoCapitalize="off" autoCorrect="off" />
             <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noreferrer"
               className="item-sub flex-row" style={{ gap: 5, marginBottom: 16 }}>
               Hämta en nyckel <ExternalLink size={12} />
@@ -183,7 +184,7 @@ export default function SettingsView({ serverAi, persistent, onKeyChanged, onRel
         <button className="btn-ghost" onClick={pushMirror} disabled={pushing || !mirrorCount}>
           <UploadCloud size={15} />
           {pushing ? 'Skickar…'
-            : mirrorCount ? `Skicka upp ${mirrorCount} varor` : 'Inget sparat på den här telefonen'}
+            : mirrorCount ? `Skicka upp ${mirrorCount} ${mirrorCount === 1 ? 'vara' : 'varor'}` : 'Inget sparat på den här telefonen'}
         </button>
       </div>
 

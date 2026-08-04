@@ -194,6 +194,9 @@ export default function ScannerView({ defaultLocation = 'fridge', items = [], ai
       setPending(null);
       resetPerItem();
       await onAdd(payload);
+    } catch (e) {
+      // Utan det här trycker man Spara och får varken vara eller besked.
+      onToast(e.message, 'danger');
     } finally {
       savingUnknown.current = false;
     }
@@ -201,10 +204,12 @@ export default function ScannerView({ defaultLocation = 'fridge', items = [], ai
 
   const addManual = async (name) => {
     if (!name.trim()) return;
-    const payload = { name: name.trim(), location, count, expiresOn: expiryNow() };
-    setManual(false);
-    resetPerItem();
-    await onAdd(payload);
+    try {
+      await onAdd({ name: name.trim(), location, count, expiresOn: expiryNow() });
+      // Stäng först när det lyckats — annars raderades namnet man just skrev.
+      setManual(false);
+      resetPerItem();
+    } catch { /* handleAdd har redan visat felet */ }
   };
 
   return (
@@ -331,8 +336,7 @@ export default function ScannerView({ defaultLocation = 'fridge', items = [], ai
               <p style={{ marginBottom: 10 }}>
                 Okänd streckkod <span className="mono">{pending.barcode}</span>. Vad är det för vara?
               </p>
-              <input autoFocus value={pending.name} placeholder="t.ex. Arla Gräddfil 5%"
-                onChange={e => setPending(p => ({ ...p, name: e.target.value }))}
+              <input autoFocus value={pending.name}                 onChange={e => setPending(p => ({ ...p, name: e.target.value }))}
                 onKeyDown={e => e.key === 'Enter' && saveUnknown()} />
               <div className="grid-2">
                 <button className="btn-ghost" onClick={hoppaOver}>Hoppa över</button>
@@ -380,7 +384,7 @@ function ManualRow({ onCancel, onSubmit }) {
   const [name, setName] = useState('');
   return (
     <div className="scan-toast" style={{ display: 'block' }}>
-      <input autoFocus value={name} placeholder="Vad lägger du in?"
+      <input autoFocus value={name} placeholder="Varans namn"
         onChange={e => setName(e.target.value)}
         onKeyDown={e => e.key === 'Enter' && onSubmit(name)} />
       <div className="grid-2">

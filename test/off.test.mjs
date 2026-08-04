@@ -19,13 +19,13 @@ test('normalizeOffProduct plockar ut det appen behöver', () => {
     product_name: 'Gräddfil 5%',
     brands: 'Arla, Arla Foods, Arla Ko',
     quantity: '3 dl',
-    image_front_small_url: 'https://images.example/front.jpg',
+    image_front_small_url: 'https://images.openfoodfacts.org/images/products/front.jpg',
     nutriments: { 'energy-kcal_100g': 100, proteins_100g: 3.1, carbohydrates_100g: 3.4, fat_100g: 12 },
   });
   assert.equal(p.name, 'Gräddfil 5%');
   assert.equal(p.brand, 'Arla');            // bara första märket, inte hela raden
   assert.equal(p.quantity, '3 dl');
-  assert.equal(p.imageUrl, 'https://images.example/front.jpg');
+  assert.equal(p.imageUrl, 'https://images.openfoodfacts.org/images/products/front.jpg');
   assert.deepEqual(p.nutriments, { kcal100: 100, protein100: 3.1, carbs100: 3.4, fat100: 12 });
   assert.equal(p.source, 'off');
 });
@@ -61,4 +61,24 @@ test('delvis ifyllda näringsvärden behålls, helt tomma blir null', () => {
 
   const tomt = normalizeOffProduct('123', { product_name: 'X', nutriments: { salt_100g: 1 } });
   assert.equal(tomt.nutriments, null);
+});
+
+/*
+  Bild-URL:en hamnar i en <img src> och kommer från en crowdsourcad databas där
+  vem som helst kan redigera fältet. Bara https mot Open Food Facts egna värdar
+  släpps igenom — resten blir null, och appen visar sin platshållare.
+*/
+test('bild-URL utanför Open Food Facts avvisas', () => {
+  const bild = (url) => normalizeOffProduct('123', { product_name: 'X', image_front_small_url: url }).imageUrl;
+
+  assert.equal(bild('https://images.openfoodfacts.org/a.jpg'), 'https://images.openfoodfacts.org/a.jpg');
+  assert.equal(bild('https://openfoodfacts.org/a.jpg'), 'https://openfoodfacts.org/a.jpg');
+
+  assert.equal(bild('https://angriparen.example/a.jpg'), null, 'främmande värd');
+  assert.equal(bild('http://images.openfoodfacts.org/a.jpg'), null, 'okrypterat');
+  assert.equal(bild('javascript:alert(1)'), null, 'javascript:');
+  assert.equal(bild('data:image/svg+xml,<svg onload=alert(1)>'), null, 'data:');
+  assert.equal(bild('https://openfoodfacts.org.angriparen.example/a.jpg'), null, 'värd som bara ser rätt ut');
+  assert.equal(bild('inte en url'), null);
+  assert.equal(bild(undefined), null);
 });
