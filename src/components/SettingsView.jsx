@@ -5,7 +5,7 @@ import { loadMirror } from '../lib/mirror';
 import { getApiKey, setApiKey, getModel, setModel, MODELS } from '../lib/ai';
 import { qrSvg } from '../lib/qr';
 
-export default function SettingsView({ serverAi, persistent, onKeyChanged, onReload, onToast }) {
+export default function SettingsView({ persistent, onKeyChanged, onReload, onToast }) {
   const [key, setKeyState] = useState(getKey());
   const [keyInput, setKeyInput] = useState('');
   const [apiKey, setApiKeyState] = useState(getApiKey());
@@ -133,21 +133,17 @@ export default function SettingsView({ serverAi, persistent, onKeyChanged, onRel
       <h3 className="eyebrow">AI</h3>
       <div className="panel">
         <p style={{ marginBottom: 12 }}>
-          {serverAi
-            ? 'Servern har en nyckel — inget behövs här.'
-            : 'Foto­igenkänning, datumläsning och recept använder Claude. Nyckeln sparas bara i den här webbläsaren.'}
+          Fotoigenkänning, datumläsning och recept använder Claude. Nyckeln är din egen och
+          sparas bara i den här webbläsaren — den skickas aldrig till FridgeTwins server, och
+          andra i hushållet lägger in sin egen.
         </p>
-        {!serverAi && (
-          <>
-            <label>Anthropic API-nyckel</label>
-            <input type="password" value={apiKey} onChange={e => saveApiKey(e.target.value)}
-              autoCapitalize="off" autoCorrect="off" />
-            <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noreferrer"
-              className="item-sub flex-row" style={{ gap: 5, marginBottom: 16 }}>
-              Hämta en nyckel <ExternalLink size={12} />
-            </a>
-          </>
-        )}
+        <label>Anthropic API-nyckel</label>
+        <input type="password" value={apiKey} onChange={e => saveApiKey(e.target.value)}
+          autoCapitalize="off" autoCorrect="off" spellCheck={false} />
+        <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noreferrer"
+          className="item-sub flex-row" style={{ gap: 5, marginBottom: 16 }}>
+          Hämta en nyckel <ExternalLink size={12} />
+        </a>
         <label>Modell</label>
         <select value={model} onChange={e => { setModelState(e.target.value); setModel(e.target.value); }}>
           {MODELS.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}

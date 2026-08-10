@@ -1,21 +1,28 @@
-// FridgeTwin API — delas av server.js (lokalt/Render) och api/index.js (Vercel).
-// Lagret ligger i libSQL/Turso så hela hushållet ser samma kylskåp; AI-anropen
-// proxas så Anthropic-nyckeln kan bo på servern.
+/*
+  FridgeTwin API — delas av server.js (lokalt/Render) och api/index.js (Vercel).
+  Lagret ligger i libSQL/Turso så hela hushållet ser samma kylskåp.
+
+  Servern rör aldrig Anthropic. AI-nyckeln är privat per enhet och går direkt
+  från webbläsaren till api.anthropic.com (se src/lib/ai.js) — det finns alltså
+  ingen proxy här som kan spendera någon annans budget, och därmed inget behov
+  av origin-spärr eller rate limit för den saken.
+*/
 import express from 'express';
-import Anthropic from '@anthropic-ai/sdk';
 import { db, initDb, ensureHousehold, householdId, newId, usingTurso, lastDbError, tursoHost } from './db.js';
 import { lookupProduct, getCachedProduct, isBarcode } from './off.js';
 
 const app = express();
-/*
-  Vercel och Render sätter X-Forwarded-For. Utan trust proxy läste rate-limitern
-  headern rå, och då kunde vem som helst rotera den och kringgå spärren helt.
-  Med den här inställningen härleder Express req.ip från det sista betrodda
-  hoppet i stället, vilket klienten inte kan förfalska.
-*/
+// Vercel och Render sätter X-Forwarded-For; utan trust proxy blir req.ip det
+// sista hoppets adress i stället för klientens.
 app.set('trust proxy', 1);
-// Rejäl gräns: AI-igenkänningen skickar ett base64-kodat foto genom /api/ai.
-app.use(express.json({ limit: '8mb' }));
+/*
+  1 MB räcker med marginal: största kroppen är en spegelsynk med 500 varor, och
+  varje vara är några hundra byte. Gränsen låg på 8 MB för att foton skickades
+  genom AI-proxyn — den finns inte längre, och foton går aldrig hitåt.
+*/
+app.use(express.json({ limit: '1mb' }));
+
+const isProd = process.env.NODE_ENV === 'production';
 
 const LOCATIONS = new Set(['fridge', 'freezer', 'pantry']);
 const REMOVE_REASONS = new Set(['consumed', 'waste']);
@@ -38,6 +45,24 @@ function isRealDate(iso) {
 }
 
 const cleanName = (v) => String(v ?? '').trim().slice(0, MAX_NAME);
+
+/*
+  SQLites lower() och LIKE är skiftlägesokänsliga — men bara för ASCII. För
+  databasen är "Ägg" och "ägg" två olika strängar, och svenska varunamn börjar
+  påfallande ofta på å, ä eller ö. Jämförelsen görs därför i JS, där
+  toLocaleLowerCase faktiskt kan svenska.
+*/
+const nameKey = (v) => String(v ?? '').trim().toLocaleLowerCase('sv');
+
+/*
+  Skiftlägesvarianter att söka på, eftersom LIKE inte klarar det själv. Täcker
+  de fall som uppstår i praktiken: skrivet som det står, allt gement, och
+  gement med stor begynnelsebokstav (det sistnämnda är hur varunamn skrivs).
+*/
+const caseVariants = (s) => {
+  const gement = s.toLocaleLowerCase('sv');
+  return [...new Set([s, gement, gement.charAt(0).toLocaleUpperCase('sv') + gement.slice(1)])];
+};
 
 // Bilden hamnar i en <img src> — bara http(s) släpps in, aldrig data: eller
 // javascript:. Klienten får skicka vad den vill; servern bestämmer vad som lagras.
@@ -86,7 +111,6 @@ app.get('/api/health', async (req, res) => {
 
   res.json({
     ok: true,
-    serverAi: Boolean(process.env.ANTHROPIC_API_KEY),
     persistent: usingTurso && ansluten,
     turso: detaljer,
   });
@@ -155,7 +179,15 @@ app.get('/api/product/:barcode', requireKey, async (req, res) => {
 app.get('/api/products', requireKey, async (req, res) => {
   const q = String(req.query.q || '').trim();
   if (q.length < 2) return res.json({ products: [] });
-  const like = `%${q.replaceAll('%', '').replaceAll('_', '')}%`;
+  // % och _ är jokertecken i LIKE; utan städningen blev "%" en sökning på allt.
+  const ren = q.replaceAll('%', '').replaceAll('_', '');
+  if (!ren) return res.json({ products: [] });
+
+  // Söker man på "ägg" ska "Ägg 12-pack" komma upp. Se caseVariants.
+  const monster = caseVariants(ren).map(v => `%${v}%`);
+  const villkor = monster.map(() => '(name LIKE ? OR brand LIKE ?)').join(' OR ');
+  const likeArgs = monster.flatMap(v => [v, v]);
+
   /*
     Egna först, sedan den globala OFF-cachen. source != 'manual' i andra ledet
     är hela poängen: utan det läckte sökningen andra hushålls egeninmatade
@@ -171,14 +203,14 @@ app.get('/api/products', requireKey, async (req, res) => {
             SELECT barcode, name, brand, quantity, NULL AS image_url, 0 AS ordning,
                    length(name) AS langd
             FROM household_products
-            WHERE household_id = ? AND (name LIKE ? OR brand LIKE ?)
+            WHERE household_id = ? AND (${villkor})
             UNION ALL
             SELECT barcode, name, brand, quantity, image_url, 1 AS ordning,
                    length(name) AS langd
             FROM products
-            WHERE source != 'manual' AND (name LIKE ? OR brand LIKE ?)
+            WHERE source != 'manual' AND (${villkor})
           ) ORDER BY ordning ASC, langd ASC LIMIT 8`,
-    args: [req.householdId, like, like, like, like],
+    args: [req.householdId, ...likeArgs, ...likeArgs],
   });
   res.json({
     products: rows.map(r => ({
@@ -289,27 +321,48 @@ app.post('/api/inventory', requireKey, async (req, res) => {
     Plats och datum måste också stämma. Två paket med olika bäst före är i
     praktiken olika varor: det ena kan behöva ätas i dag.
   */
-  const { rows: dupes } = await db.execute({
-    sql: `SELECT * FROM items WHERE household_id = ? AND removed_at IS NULL
-          AND location = ? AND IFNULL(expires_on, '') = IFNULL(?, '')
-          AND ${barcode ? 'barcode = ?' : 'barcode IS NULL AND lower(name) = lower(?)'}
-          LIMIT 1`,
-    args: [req.householdId, location, expiresOn, barcode || name],
-  });
-  if (dupes[0]) {
-    const { rows: updated } = await db.execute({
-      sql: 'UPDATE items SET count = min(count + ?, ?) WHERE id = ? RETURNING *',
-      args: [count, MAX_COUNT, dupes[0].id],
+  // Namnjämförelsen görs i JS och inte med lower() i SQL — se nameKey.
+  const hittaDubblett = async () => {
+    const { rows } = await db.execute({
+      sql: `SELECT * FROM items WHERE household_id = ? AND removed_at IS NULL
+            AND location = ? AND IFNULL(expires_on, '') = IFNULL(?, '')
+            AND ${barcode ? 'barcode = ?' : 'barcode IS NULL'}`,
+      args: barcode
+        ? [req.householdId, location, expiresOn, barcode]
+        : [req.householdId, location, expiresOn],
     });
-    return res.status(200).json({ item: rowToItem(updated[0]), merged: true });
+    return barcode ? rows[0] : rows.find(r => nameKey(r.name) === nameKey(name));
+  };
+
+  // Svarar null om raden hann tas bort mellan uppslaget och skrivningen — då är
+  // rätt sak att lägga in den på nytt i stället.
+  const rakaUpp = async (id) => {
+    const { rows } = await db.execute({
+      sql: 'UPDATE items SET count = min(count + ?, ?) WHERE id = ? AND removed_at IS NULL RETURNING *',
+      args: [count, MAX_COUNT, id],
+    });
+    return rows[0] || null;
+  };
+
+  const dubblett = await hittaDubblett();
+  if (dubblett) {
+    const uppraknad = await rakaUpp(dubblett.id);
+    if (uppraknad) return res.json({ item: rowToItem(uppraknad), merged: true });
   }
 
-  const id = newId();
+  /*
+    Kvar är ett litet glapp: två exakt samtidiga inläggningar av samma vara kan
+    båda hitta ingenting här och båda lägga in en rad. Ett unikhetsindex stängde
+    det, men fick samtidigt UPDATE att bryta mot samma villkor — och därmed blev
+    "flytta bananerna till kylen" ett 500 (se db.js). Två rader av samma vara är
+    ofarligt och slås ihop nästa gång varan skannas; att inte kunna flytta en
+    vara är det inte.
+  */
   const { rows } = await db.execute({
     sql: `INSERT INTO items (id, household_id, barcode, name, brand, quantity, image_url,
                              location, count, added_at, expires_on)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
-    args: [id, req.householdId, barcode, name, brand, quantity, imageUrl,
+    args: [newId(), req.householdId, barcode, name, brand, quantity, imageUrl,
       location, count, new Date().toISOString(), expiresOn],
   });
   res.status(201).json({ item: rowToItem(rows[0]), merged: false });
@@ -346,7 +399,7 @@ app.post('/api/inventory/sync', requireKey, async (req, res) => {
   const incoming = alla;
   await ensureHousehold(req.fridgeKey);
 
-  let restored = 0;
+  const satser = [];
   for (const raw of incoming) {
     const id = String(raw?.id || '');
     const name = cleanName(raw?.name);
@@ -357,7 +410,15 @@ app.post('/api/inventory/sync', requireKey, async (req, res) => {
     const location = LOCATIONS.has(raw.location) ? raw.location : 'fridge';
     const expiresOn = isRealDate(raw.expiresOn) ? raw.expiresOn : null;
 
-    const { rowsAffected } = await db.execute({
+    satser.push({
+      /*
+        ON CONFLICT(id) och inte bara ON CONFLICT: måltavlan ska vara varans id
+        och ingenting annat. Utan den blev vilken unikhetskrock som helst en tyst
+        överhoppning — en spegelvara som liknade en rad servern redan hade föll
+        då bort utan att räknas, och klienten skrev sedan serverns kortare svar
+        tillbaka över spegeln. Det är precis den dataförlust spegeln finns för
+        att förhindra.
+      */
       sql: `INSERT INTO items (id, household_id, barcode, name, brand, quantity, image_url,
                                location, count, added_at, expires_on)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -370,7 +431,18 @@ app.post('/api/inventory/sync', requireKey, async (req, res) => {
           ? raw.addedAt.slice(0, 40) : new Date().toISOString(),
         expiresOn],
     });
-    restored += rowsAffected;
+  }
+
+  /*
+    En batch och inte 500 separata skrivningar. Mot Turso är varje db.execute en
+    egen rundresa över HTTP, så en full spegelåterläggning blev 500 av dem i
+    följd — det hann slå i Vercels funktionstak innan den var klar, och då kom
+    inget svar alls tillbaka till telefonen som satt med hela lagret.
+  */
+  let restored = 0;
+  if (satser.length) {
+    const svar = await db.batch(satser, 'write');
+    restored = svar.reduce((n, r) => n + (r.rowsAffected || 0), 0);
   }
 
   const { rows } = await db.execute({
@@ -476,107 +548,23 @@ app.post('/api/inventory/:id/restore', requireKey, async (req, res) => {
   res.json({ item: rowToItem(rows[0]) });
 });
 
-// ---- AI-proxy ----
-// Kopierad från TimeProxy (server/app.js) — samma två spärrar, samma skäl:
-// proxyn spenderar ägarens Anthropic-budget och får därför inte vara öppen.
-const ALLOWED_MODELS = new Set(['claude-opus-4-8', 'claude-sonnet-5', 'claude-haiku-4-5']);
-/*
-  Timeout under Vercels funktionstak. SDK:ns standard är tio minuter, och
-  serverless-funktionen dödas långt innan dess — då hinner catch-blocket aldrig
-  svara och klienten får en tom 504 i stället för ett felmeddelande.
-*/
-const anthropic = process.env.ANTHROPIC_API_KEY
-  ? new Anthropic({ timeout: 25000, maxRetries: 1 })
-  : null;
-
-const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '')
-  .split(',').map(s => s.trim()).filter(Boolean);
-
-const isLocal = (host) => /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(host);
-
-const isProd = process.env.NODE_ENV === 'production';
-
-const originAllowed = (req) => {
-  const origin = req.get('origin');
-  /*
-    Saknad Origin släpptes förr alltid igenom, med motiveringen att curl och
-    en del same-origin-anrop inte skickar headern. Men att utelämna en header
-    är ingen privilegierad handling: kombinerat med att rutten saknade
-    hushållsnyckel var proxyn därmed öppen för vem som helst som hittade
-    deployen — och den spenderar ägarens Anthropic-budget.
-
-    I utveckling är den slappa varianten fortfarande bekväm.
-  */
-  if (!origin) return !isProd;
-  if (ALLOWED_ORIGINS.length) return ALLOWED_ORIGINS.includes(origin);
-  let host;
-  try {
-    host = new URL(origin).host;
-  } catch {
-    return false;
-  }
-  if (isLocal(host)) return true; // Vite (5399) proxar till 8799 i utveckling
-  return host === req.get('host');
-};
-
-const RATE_LIMIT = Number(process.env.AI_RATE_LIMIT || 20);
-const RATE_WINDOW_MS = 5 * 60 * 1000;
-const hits = new Map();
-
-const rateLimited = (ip) => {
-  const now = Date.now();
-  const rec = hits.get(ip);
-  if (!rec || now - rec.start > RATE_WINDOW_MS) {
-    hits.set(ip, { start: now, count: 1 });
-    /*
-      Rensa utgångna poster i stället för hits.clear(). Att tömma allt gav en
-      angripare en knapp: 5000 påhittade adresser nollställde räknaren för alla
-      andra, inklusive den man just strypt.
-    */
-    if (hits.size > 5000) {
-      for (const [k, v] of hits) if (now - v.start > RATE_WINDOW_MS) hits.delete(k);
-    }
-    return false;
-  }
-  rec.count += 1;
-  return rec.count > RATE_LIMIT;
-};
-
-app.post('/api/ai', requireKey, async (req, res) => {
-  if (!anthropic) {
-    return res.status(501).json({ error: 'Ingen ANTHROPIC_API_KEY på servern' });
-  }
-  if (!originAllowed(req)) {
-    return res.status(403).json({ error: 'Otillåten origin' });
-  }
-  // req.ip och inte rå X-Forwarded-For: se trust proxy ovan.
-  const ip = req.ip || 'unknown';
-  if (rateLimited(ip)) {
-    return res.status(429).json({ error: 'För många AI-anrop. Vänta en stund.' });
-  }
-  try {
-    const { model, system, messages, max_tokens, output_config, thinking } = req.body || {};
-    const response = await anthropic.messages.create({
-      model: ALLOWED_MODELS.has(model) ? model : 'claude-sonnet-5',
-      max_tokens: Math.min(max_tokens || 2048, 8192),
-      system,
-      messages,
-      ...(thinking ? { thinking } : {}),
-      ...(output_config ? { output_config } : {}),
-    });
-    res.json(response);
-  } catch (e) {
-    console.error('AI proxy error:', e.message);
-    res.status(e.status || 500).json({ error: e.message });
-  }
-});
-
 /*
   Sista utposten. Utan den besvarar Express varje ohanterat fel i en
   route-handler med sin standardsida — HTML plus full stacktrace, i en app
   vars klient bara kan tolka JSON.
+
+  Kroppsläsaren kastar egna fel med vettiga statuskoder, och de ska inte bli
+  "Serverfel 500". En trasig JSON-kropp är klientens fel, inte serverns, och en
+  spegelsynk som spränger gränsen ska säga just det — klienten har redan en
+  hantering för 413 som låter den lokala kopian vara i fred.
 */
 app.use((err, _req, res, _next) => {
+  if (err?.type === 'entity.too.large') {
+    return res.status(413).json({ error: 'För stor begäran' });
+  }
+  if (err?.type === 'entity.parse.failed') {
+    return res.status(400).json({ error: 'Ogiltig JSON' });
+  }
   console.error('Ohanterat fel:', err?.message || err);
   res.status(err?.status || 500).json({ error: 'Serverfel' });
 });

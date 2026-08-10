@@ -54,6 +54,15 @@ export default function ScannerView({ defaultLocation = 'fridge', items = [], ai
   const stateRef = useRef({ auto, location, pending, days });
   stateRef.current = { auto, location, pending, days };
 
+  /*
+    Skannern stängs ofta mitt i något: ett produktuppslag är i luften, eller ett
+    foto håller på att läsas. Kom svaret efter att vyn stängts satte det
+    tillstånd på en avmonterad komponent — och en toast om ett fel för en
+    kamera som inte längre är uppe. Refen låter de svaren rinna ut i sanden.
+  */
+  const levande = useRef(true);
+  const flashTimer = useRef(null);
+
   // Valt antal dagar → datum. Räknas ut vid inläggningen, inte vid valet, så
   // att ett skanningspass över midnatt inte sätter gårdagens datum. Ett fotat
   // datum är redan absolut och går före.
@@ -64,9 +73,26 @@ export default function ScannerView({ defaultLocation = 'fridge', items = [], ai
   // plats och snabbval kvar.
   const resetPerItem = () => { setCount(1); setPhotoDate(null); };
 
+  /*
+    Skicka med det vi redan vet om varan, inte bara streckkoden.
+
+    Servern kan slå upp namnet själv, men bara ur sin egen produktcache — och
+    utan TURSO_URL ligger den i en lambdas /tmp. Uppslaget som fyllde kortet kan
+    ha hanterats av en annan instans än den som tar emot inläggningen, och då är
+    cachen tom: svaret blev "Namn krävs" trots att namnet stod på skärmen.
+    Klienten har uppgifterna framför sig; då ska den skicka dem.
+  */
+  const fromProduct = (p) => ({
+    name: p?.name || undefined,
+    brand: p?.brand || undefined,
+    quantity: p?.quantity || undefined,
+    imageUrl: p?.imageUrl || undefined,
+  });
+
   const handleDatePhoto = async (dataUrl) => {
     try {
       const { date, raw } = await readBestBefore(dataUrl);
+      if (!levande.current) return;
       if (!date || !ISO_DATE_RE.test(date)) {
         return onToast(raw ? `Kunde inte tolka "${raw}"` : 'Hittade inget datum på bilden', 'danger');
       }
@@ -74,7 +100,7 @@ export default function ScannerView({ defaultLocation = 'fridge', items = [], ai
       setDays(null); // ett läst datum slår ett gissat
       onToast(`Läste ${fmtExpiry(date)}`);
     } catch (e) {
-      onToast(e.message, 'danger');
+      if (levande.current) onToast(e.message, 'danger');
     }
   };
 
@@ -112,26 +138,35 @@ export default function ScannerView({ defaultLocation = 'fridge', items = [], ai
     */
     if (stateRef.current.pending) return;
     buzz();
+    clearTimeout(flashTimer.current);
     setFlash(true);
-    setTimeout(() => setFlash(false), 250);
+    flashTimer.current = setTimeout(() => setFlash(false), 250);
     setPending({ barcode, status: 'loading' });
     try {
       const product = await lookupProduct(barcode);
+      if (!levande.current) return;
       if (!product) {
         setPending({ barcode, status: 'unknown', name: '' });
         return;
       }
       if (stateRef.current.auto) {
         setPending(null);
-        await onAdd({
-          barcode,
-          location: stateRef.current.location,
-          expiresOn: expiryFrom(stateRef.current.days),
-        });
+        // Egen catch: onAdd (Apps handleAdd) visar redan felet och kastar
+        // vidare. Utan den här fångades det av catch-blocket nedan, och
+        // användaren fick samma röda besked två gånger.
+        try {
+          await onAdd({
+            barcode,
+            ...fromProduct(product),
+            location: stateRef.current.location,
+            expiresOn: expiryFrom(stateRef.current.days),
+          });
+        } catch { /* redan rapporterat */ }
         return;
       }
       setPending({ barcode, status: 'found', product });
     } catch (e) {
+      if (!levande.current) return;
       setPending(null);
       onToast(e.message, 'danger');
     }
@@ -144,6 +179,9 @@ export default function ScannerView({ defaultLocation = 'fridge', items = [], ai
     let stream;
     let stopLoop;
     let cancelled = false;
+    // Sätts om vid varje montering: i StrictMode körs effekten två gånger, och
+    // en flagga som bara sattes till false hade lämnat skannern död i utveckling.
+    levande.current = true;
 
     (async () => {
       try {
@@ -162,16 +200,57 @@ export default function ScannerView({ defaultLocation = 'fridge', items = [], ai
       }
     })();
 
+    /*
+      Väck strömmen igen när den blivit avstängd under oss.
+
+      iOS låter inte två konsumenter hålla kameran samtidigt. Trycker man "Fota
+      datumet" — som skannern själv erbjuder mitt i sökaren — tar systemkameran
+      över, och sidans spår slutar leverera bildrutor. Samma sak vid ett
+      inkommande samtal, en låst skärm eller ett app-byte. Sökaren visade då en
+      frusen bild med texten "Rikta mot streckkoden" kvar, och ingen kod lästes
+      någonsin mer; enda vägen ut var att stänga och öppna skannern igen, mitt i
+      en matkasse.
+
+      scanLoop märker ingenting, eftersom dess hälsokontroll är readyState och
+      videoWidth — båda är fortfarande sanna på en pausad video med en
+      kvarhängande bildruta. Därför får återstarten hänga på synligheten i
+      stället, som är den signal webbläsaren faktiskt ger oss.
+    */
+    const aterstarta = async () => {
+      if (cancelled || document.hidden || !videoRef.current) return;
+      const spar = stream?.getVideoTracks?.()[0];
+      const levandeSpar = spar && spar.readyState === 'live';
+      if (levandeSpar && !videoRef.current.paused) return; // allt är som det ska
+      try {
+        if (!levandeSpar) {
+          stopCamera(stream);
+          stream = await startCamera(videoRef.current);
+          if (cancelled) return stopCamera(stream);
+        } else {
+          await videoRef.current.play();
+        }
+        setError(null);
+      } catch {
+        // Nekas kameran nu är det inget vi kan lösa här; nästa gång vyn öppnas
+        // går den vanliga uppstarten och ger ett riktigt felmeddelande.
+      }
+    };
+
+    document.addEventListener('visibilitychange', aterstarta);
+
     return () => {
       cancelled = true;
+      levande.current = false;
+      clearTimeout(flashTimer.current);
+      document.removeEventListener('visibilitychange', aterstarta);
       stopLoop?.();
       stopCamera(stream);
     };
   }, []);
 
   const addFound = async () => {
-    const { barcode } = pending;
-    const payload = { barcode, location, count, expiresOn: expiryNow() };
+    const { barcode, product } = pending;
+    const payload = { barcode, ...fromProduct(product), location, count, expiresOn: expiryNow() };
     setPending(null);
     resetPerItem();
     await onAdd(payload);
@@ -306,7 +385,8 @@ export default function ScannerView({ defaultLocation = 'fridge', items = [], ai
                     liten tryckt text behöver mer än skannerströmmen gör. */}
                 {aiOk && (
                   <PhotoButton className="chip chip-foto" label="Fota datumet"
-                    busyLabel="Läser…" onPhoto={handleDatePhoto} />
+                    busyLabel="Läser…" onPhoto={handleDatePhoto}
+                    onError={m => onToast(m, 'danger')} />
                 )}
               </div>
 

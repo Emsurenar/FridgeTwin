@@ -26,8 +26,9 @@ export default function ItemSheet({ item, aiOk, onClose, onPatch, onRemove, onTo
       if (count !== item.count) patch.count = count;
       if (location !== item.location) patch.location = location;
       if ((expiresOn || null) !== item.expiresOn) patch.expiresOn = expiresOn || null;
-      await onPatch(item.id, patch);
-      onClose();
+      // Stäng bara om det gick vägen. Gick det inte står arket kvar med det man
+      // ändrat, så Spara går att trycka på igen.
+      if (await onPatch(item.id, patch)) onClose();
     } finally {
       setSaving(false);
     }

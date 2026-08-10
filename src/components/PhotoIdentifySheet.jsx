@@ -45,11 +45,21 @@ export default function PhotoIdentifySheet({ onClose, onAddMany, onToast }) {
 
   const chosen = rows?.filter(r => r.checked) || [];
 
+  /*
+    Stäng bara om något faktiskt kom in.
+
+    Förslagen kostade ett betalt anrop mot användarens egen nyckel. Gick
+    inläggningen om intet — servern nere, nätet borta — stängdes arket ändå, och
+    då var både listan och pengarna borta: enda vägen tillbaka var att fota om
+    och betala igen. onAddMany svarar ja/nej just av det skälet.
+  */
   const add = async () => {
     setBusy(true);
     try {
-      await onAddMany(chosen.map(({ name, count, location, expiresOn }) => ({ name, count, location, expiresOn })));
-      onClose();
+      const nagotLades = await onAddMany(
+        chosen.map(({ name, count, location, expiresOn }) => ({ name, count, location, expiresOn }))
+      );
+      if (nagotLades) onClose();
     } finally {
       setBusy(false);
     }
@@ -63,7 +73,8 @@ export default function PhotoIdentifySheet({ onClose, onAddMany, onToast }) {
         </p>
 
         <PhotoButton label={rows ? 'Ta ett nytt foto' : 'Ta foto'} busyLabel="Tittar på bilden…"
-          className={rows ? 'btn-ghost' : ''} onPhoto={handlePhoto} disabled={busy} />
+          className={rows ? 'btn-ghost' : ''} onPhoto={handlePhoto} disabled={busy}
+          onError={m => onToast(m, 'danger')} />
 
         {busy && !rows && <p style={{ marginTop: 16, textAlign: 'center' }}>Claude tittar på bilden…</p>}
 

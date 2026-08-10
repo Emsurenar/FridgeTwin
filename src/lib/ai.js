@@ -1,5 +1,17 @@
-// Claude-integration: server-proxy först, klientnyckel som reserv — samma
-// upplägg som TimeProxy, så nyckelhanteringen fungerar likadant i båda apparna.
+/*
+  Claude-integration. Nyckeln är privat per enhet: den bor i den här
+  webbläsarens localStorage och skickas därifrån direkt till api.anthropic.com.
+
+  Appen hade tidigare också en serverproxy, där ägaren av deployen la sin nyckel
+  i miljön och alla besökare lånade den. Det är bekvämt men fel sak att bygga:
+  en publik deploy blir då en öppen kran mot ägarens konto, och den som betalar
+  har ingen aning om vem som spenderar. Nu tar var och en med sig sin egen
+  nyckel, och ingen nyckel passerar någonsin FridgeTwins server.
+
+  Priset är att nyckeln ligger i webbläsaren och alltså är läsbar för skript på
+  sidan. Därför är CSP:n strikt (script-src 'self', ingen inline, ingen eval)
+  och det är också anledningen att den ska ha en spendgräns hos Anthropic.
+*/
 import Anthropic from '@anthropic-ai/sdk';
 import { todayIso } from './expiry';
 import { locationLabel } from './fmt';
@@ -32,59 +44,92 @@ const skriv = (k, v) => {
 };
 
 export const getApiKey = () => las(KEY_STORAGE) || '';
-export const setApiKey = (k) => skriv(KEY_STORAGE, k || null);
-export const getModel = () => las(MODEL_STORAGE) || MODELS[0].id;
+
+/*
+  Nyckeln ändras i Inställningar men avgör vad som visas överallt annars —
+  fotoknappen i skannern, receptvyn, kameraknappen i formuläret. Tidigare läste
+  App bara av den under sin egen rendering, så en nyinmatad nyckel slog igenom
+  först nästa gång något annat råkade rendera om: man klistrade in nyckeln och
+  knapparna fortsatte vara borta. Prenumerationen gör bytet till en händelse.
+*/
+const lyssnare = new Set();
+export function subscribeAi(fn) {
+  lyssnare.add(fn);
+  return () => lyssnare.delete(fn);
+}
+export function setApiKey(k) {
+  skriv(KEY_STORAGE, k || null);
+  for (const fn of lyssnare) fn();
+}
+
+// Okänt id i lagringen (gammal modell, eller någon som petat i localStorage)
+// ska inte bli ett 404 från Anthropic — då är standardmodellen rätt svar.
+export const getModel = () => {
+  const sparad = las(MODEL_STORAGE);
+  return MODELS.some(m => m.id === sparad) ? sparad : MODELS[0].id;
+};
 export const setModel = (m) => skriv(MODEL_STORAGE, m);
 
-let serverAi = null;
-export async function checkServerAi() {
-  try {
-    const r = await fetch('/api/health');
-    serverAi = Boolean((await r.json()).serverAi);
-  } catch {
-    serverAi = false;
-  }
-  return serverAi;
+export const aiReady = () => Boolean(getApiKey());
+
+/*
+  SDK:ns standardtimeout är tio minuter. På en telefon som tappat nätet betyder
+  det en snurra som aldrig slutar snurra.
+
+  60 sekunder och ett omförsök, alltså två minuter i värsta fall. Timeouten
+  räknas per försök och SDK:n gör om anropet automatiskt, så talen multipliceras
+  — med 90 sekunder blev taket tre minuter, vilket är längre än någon står kvar
+  och tittar. Omförsöket är ändå värt att ha: det fångar en överbelastad modell,
+  och det är ett vanligare fel än en död anslutning.
+*/
+let klient = null;
+let klientNyckel = null;
+function anthropicFor(apiKey) {
+  if (klient && klientNyckel === apiKey) return klient;
+  klientNyckel = apiKey;
+  klient = new Anthropic({
+    apiKey,
+    dangerouslyAllowBrowser: true,
+    timeout: 60000,
+    maxRetries: 1,
+  });
+  return klient;
 }
-export const aiReady = () => Boolean(serverAi) || Boolean(getApiKey());
 
-async function aiRequest({ system, messages, maxTokens = 2048, schema }) {
-  const body = {
-    model: getModel(),
-    system,
-    messages,
-    max_tokens: maxTokens,
-    ...(schema ? { output_config: { format: { type: 'json_schema', schema } } } : {}),
-  };
+/*
+  Taken är rundhänta med flit.
 
-  // 1) Serverproxyn (nyckeln bor i serverns miljö)
-  let useDirect = false;
-  try {
-    const r = await fetch('/api/ai', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    if (r.ok) return extractText(await r.json());
-    if (r.status === 501 || r.status === 404) {
-      useDirect = true; // ingen nyckel på servern — testa klientnyckeln
-    } else {
-      throw new AiError((await r.json().catch(() => ({}))).error || `AI-fel (${r.status})`);
-    }
-  } catch (e) {
-    if (!useDirect) {
-      if (e instanceof AiError) throw e;
-      useDirect = true; // nätverksfel mot proxyn
-    }
-  }
-
-  // 2) Direkt från webbläsaren med lokalt sparad nyckel
+  max_tokens är ett tak, inte en reservation — man betalar för det som faktiskt
+  genereras, så ett högt tak kostar ingenting. Däremot omfattar taket modellens
+  tänkande och inte bara svarstexten, och standardmodellen (Sonnet 5) tänker som
+  standard utan att man ber om det. Med de tidigare talen (400 för datumläsning)
+  gick hela utrymmet åt till tänkandet: svaret stannade på max_tokens, innehöll
+  inget textblock, och datumläsningen fungerade helt enkelt aldrig.
+*/
+async function aiRequest({ system, messages, maxTokens = 4000, schema }) {
   const apiKey = getApiKey();
-  if (!apiKey) throw new AiError('Ingen AI tillgänglig. Lägg till din API-nyckel under Inställningar.');
+  if (!apiKey) throw new AiError('Ingen AI-nyckel på den här enheten. Lägg in en under Inställningar.');
   try {
-    const anthropic = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
-    return extractText(await anthropic.messages.create(body));
+    return extractText(await anthropicFor(apiKey).messages.create({
+      model: getModel(),
+      system,
+      messages,
+      max_tokens: maxTokens,
+      ...(schema ? { output_config: { format: { type: 'json_schema', schema } } } : {}),
+    }));
   } catch (e) {
+    if (e instanceof AiError) throw e;
+    // Fel nyckel är det enda felet användaren själv kan åtgärda, så det säger
+    // vi rakt ut i stället för att skicka vidare Anthropics engelska text.
+    if (e?.status === 401) throw new AiError('Nyckeln avvisades. Kontrollera den under Inställningar.');
+    if (e?.status === 429) throw new AiError('För många anrop mot Anthropic. Vänta en stund.');
+    if (e?.status === 529 || e?.status >= 500) throw new AiError('Anthropic svarar inte just nu. Försök igen om en stund.');
+    // Timeout och avbrott har varken .status eller svensk text i SDK:n, och
+    // "Request timed out." mitt i en i övrigt svensk app säger inget om vad man
+    // ska göra åt saken.
+    if (/timed? ?out|aborted|network|fetch failed/i.test(e?.message || '')) {
+      throw new AiError('Anropet tog för lång tid. Kontrollera uppkopplingen och försök igen.');
+    }
     throw new AiError(e?.error?.error?.message || e.message || 'AI-anropet misslyckades.');
   }
 }
@@ -92,6 +137,17 @@ async function aiRequest({ system, messages, maxTokens = 2048, schema }) {
 function extractText(msg) {
   if (msg.stop_reason === 'refusal') throw new AiError('AI:n avböjde förfrågan.');
   const text = (msg.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
+  /*
+    max_tokens är ett tak för tänkande *plus* svarstext, och standardmodellen
+    tänker som standard. Med ett snålt tak gick hela utrymmet åt till tänkandet
+    och svaret kom aldrig fram — utan det här fallet blev beskedet "Tomt svar
+    från AI:n", vilket pekar åt precis fel håll när felet är ett för lågt tak.
+  */
+  if (msg.stop_reason === 'max_tokens') {
+    throw new AiError(text
+      ? 'Svaret hann inte bli klart. Försök igen.'
+      : 'Modellen hann inte svara klart. Försök igen, eller välj en annan modell under Inställningar.');
+  }
   if (!text) throw new AiError('Tomt svar från AI:n.');
   return text;
 }
@@ -158,7 +214,7 @@ Regler:
       content: [imageBlock(imageDataUrl), { type: 'text', text: 'Vilka matvaror syns på bilden?' }],
     }],
     schema: IDENTIFY_SCHEMA,
-    maxTokens: 1500,
+    maxTokens: 5000,
   });
   const parsed = parseJson(text);
   return {
@@ -196,7 +252,7 @@ Regler:
       content: [imageBlock(imageDataUrl), { type: 'text', text: 'Vilket bäst före-datum står på förpackningen?' }],
     }],
     schema: DATE_SCHEMA,
-    maxTokens: 400,
+    maxTokens: 2000,
   });
   return parseJson(text);
 }
@@ -296,7 +352,7 @@ Regler:
     system,
     messages: [{ role: 'user', content }],
     schema: RECIPE_SCHEMA,
-    maxTokens: 2500,
+    maxTokens: 8000,
   });
   return parseJson(text).recipes || [];
 }

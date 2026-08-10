@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Refrigerator, ChefHat, Settings as SettingsIcon, ScanLine, Loader2, AlertTriangle } from 'lucide-react';
 import * as api from './lib/api';
-import { checkServerAi, aiReady, suggestRecipes } from './lib/ai';
+import { subscribeAi, aiReady, suggestRecipes } from './lib/ai';
 import { loadLog, addEntry, removeEntry, clearLog, newEntryId } from './lib/recipeLog';
 import { loadMirror, saveMirror, missingFromServer } from './lib/mirror';
 import { loadRatings, setRating } from './lib/ratings';
@@ -26,7 +26,6 @@ export default function App() {
   const [door, setDoor] = useState('fridge');
   const [selected, setSelected] = useState(null);
   const [toast, setToast] = useState(null);
-  const [serverAi, setServerAi] = useState(false);
   /*
     null = vi vet inte än. Utan det tredje läget är "lagret sparas inte" sant
     redan vid första målningen, så varningen hade blinkat rött vid varje start
@@ -61,6 +60,8 @@ export default function App() {
   // appen sitt tomma starttillstånd över det som faktiskt fanns.
   const loadedOnce = useRef(false);
   const loadSeq = useRef(0);
+  // Senaste *besvarade* health-anropet. Se load().
+  const senastKandaDurable = useRef(null);
 
   const showToast = useCallback((message, type = 'success', action = null) => {
     clearTimeout(toastTimer.current);
@@ -87,7 +88,18 @@ export default function App() {
       */
       const health = await api.getHealth().catch(() => null);
       if (min !== loadSeq.current) return;
-      const durable = health ? Boolean(health.persistent) : null;
+      /*
+        Ett misslyckat health-anrop betyder inte att servern hunnit bli
+        beständig — det betyder att vi inte fick svar. Tidigare nollställdes
+        vetskapen till null, och då slog ett enda 504 från en kall lambda av
+        allt på en gång: spegeln lästes inte, spegeln skrevs inte, och den röda
+        bannern "Lagret sparas inte" försvann. Man kunde skanna in hela
+        matkassen i en lambdas /tmp utan en enda varning, och tappa allt när
+        instansen återvanns. Det senast kända svaret är en bättre gissning än
+        ingen alls.
+      */
+      const durable = health ? Boolean(health.persistent) : senastKandaDurable.current;
+      if (health) senastKandaDurable.current = durable;
       setPersistent(durable);
 
       let fresh = await api.getInventory();
@@ -97,6 +109,12 @@ export default function App() {
         const missing = missingFromServer(loadMirror(api.getKey()), fresh);
         if (missing.length) {
           const res = await api.syncItems(missing);
+          /*
+            Sekvenskontroll även här. Synken kan ta lång tid, och hinner man
+            byta hushållsnyckel under tiden skrevs det gamla hushållets lager
+            ner under den nya nyckeln — och sköts sedan in i sambons kylskåp.
+          */
+          if (min !== loadSeq.current) return;
           fresh = res.items;
           if (res.restored) {
             showToast(res.restored === 1
@@ -132,7 +150,6 @@ export default function App() {
     // En delad länk (#key=…) ska gälla direkt, innan lagret hämtas.
     api.adoptKeyFromUrl();
     load(); // hämtar health själv — den avgör om spegeln ska användas
-    checkServerAi().then(setServerAi);
 
     // Lagret delas med hushållet, så det kan ha ändrats medan appen låg i
     // bakgrunden. Hämta om när den kommer fram igen — billigare och mindre
@@ -208,19 +225,47 @@ export default function App() {
     har fel — inte servern. Rätt svar är att släppa varan och säga varför,
     inte att låta den ligga kvar och gå att trycka på igen.
   */
+  /*
+    En 404 är bara auktoritativ när servern faktiskt minns.
+
+    Utan Turso ligger lagret i en lambdas /tmp, och nästa anrop kan träffa en
+    kall instans som aldrig sett raden. Då betyder 404 "den här instansen
+    känner inte till varan", inte "varan är borttagen" — men appen trodde på
+    den, plockade bort raden ur listan, och effekten som speglar listan
+    raderade den strax därefter ur spegeln. Spegeln var den enda kvarvarande
+    kopian, så varan var borta för gott, med ett besked som påstod att någon
+    annan i hushållet redan tagit bort den.
+  */
   const dropIfGone = (id, e) => {
     if (e.status !== 404) return false;
+    if (persistent === false) {
+      showToast('Servern hittade inte varan just nu. Försök igen.', 'danger');
+      return true;
+    }
     setItems(prev => prev.filter(i => i.id !== id));
     showToast('Varan är redan borttagen', 'danger');
     return true;
   };
 
+  /*
+    Svarar om arket ska stängas. Tidigare svarade den ingenting alls, och arket
+    stängdes oavsett — misslyckades sparningen försvann både ändringen och
+    formuläret, och kvar fanns bara en röd toast.
+
+    404 är undantaget: då finns varan inte längre, och det finns inget att
+    försöka igen på. Andra fel går att försöka om, så då står arket kvar — och
+    så gör det även vid en osäker 404 mot en icke-beständig server, för där står
+    varan kvar i listan och ska gå att spara om.
+  */
   const handlePatch = async (id, patch) => {
     try {
       upsert(await api.patchItem(id, patch));
       showToast('Sparat');
+      return true;
     } catch (e) {
-      if (!dropIfGone(id, e)) showToast(e.message, 'danger');
+      if (dropIfGone(id, e)) return persistent !== false;
+      showToast(e.message, 'danger');
+      return false;
     }
   };
 
@@ -241,9 +286,21 @@ export default function App() {
         },
       });
     } catch (e) {
-      // 404 betyder att någon annan redan tagit bort den — då är den borta,
-      // och att lägga tillbaka raden vore att ljuga om lagret.
-      if (e.status === 404) return showToast('Varan var redan borttagen', 'danger');
+      /*
+        404 betyder att någon annan redan tagit bort den — då är den borta, och
+        att lägga tillbaka raden vore att ljuga om lagret.
+
+        Utom när servern inte är beständig: då kan 404 lika gärna komma från en
+        kall instans som aldrig sett raden, och den optimistiska borttagningen
+        skulle strax därefter radera varan ur spegeln — den enda kopia som fanns.
+      */
+      if (e.status === 404) {
+        if (persistent === false) {
+          upsert(item);
+          return showToast('Servern hittade inte varan just nu. Försök igen.', 'danger');
+        }
+        return showToast('Varan var redan borttagen', 'danger');
+      }
       upsert(item); // något annat gick fel — lägg tillbaka raden
       showToast(e.message, 'danger');
     }
@@ -335,7 +392,10 @@ export default function App() {
     setTab('inventory');
   };
 
-  const aiOk = serverAi || aiReady();
+  // Prenumeration och inte ett avläst värde: nyckeln sätts i Inställningar, och
+  // knapparna den styr sitter i skannern och receptvyn. Utan den här kopplingen
+  // syntes en nyinlagd nyckel först när något annat råkade rendera om.
+  const aiOk = useSyncExternalStore(subscribeAi, aiReady);
 
   /*
     Utan TURSO_URL ligger lagret i serverns /tmp. På Vercel är den katalogen
@@ -378,7 +438,7 @@ export default function App() {
             onClear={() => setRecipeLog(clearLog())} />
         )}
         {tab === 'settings' && (
-          <SettingsView serverAi={serverAi} persistent={persistent}
+          <SettingsView persistent={persistent}
             onKeyChanged={handleKeyChanged} onReload={load} onToast={showToast} />
         )}
       </div>

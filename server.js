@@ -21,6 +21,5 @@ if (fs.existsSync(dist)) {
 
 app.listen(PORT, () => {
   console.log(`FridgeTwin på http://localhost:${PORT}`
-    + ` (databas: ${usingTurso ? 'Turso' : 'lokal fil'},`
-    + ` server-AI: ${process.env.ANTHROPIC_API_KEY ? 'ja' : 'nej — klientnyckel används'})`);
+    + ` (databas: ${usingTurso ? 'Turso' : 'lokal fil'})`);
 });

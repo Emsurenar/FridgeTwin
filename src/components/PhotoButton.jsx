@@ -9,7 +9,7 @@ import { fileToDataUrl } from '../lib/image';
   stillbild som ska tolkas av en modell är det klart bättre. Skannern behöver
   däremot strömmen, eftersom den avkodar många bildrutor i sekunden.
 */
-export default function PhotoButton({ label, busyLabel = 'Läser…', onPhoto, className = '', disabled, ...rest }) {
+export default function PhotoButton({ label, busyLabel = 'Läser…', onPhoto, onError, className = '', disabled, ...rest }) {
   const inputRef = useRef(null);
   const [busy, setBusy] = useState(false);
 
@@ -22,6 +22,15 @@ export default function PhotoButton({ label, busyLabel = 'Läser…', onPhoto, c
       // await band tidigare bara fileToDataUrl, så knappen släpptes fri redan
       // efter bildkonverteringen medan AI-anropet fortfarande pågick.
       await onPhoto(await fileToDataUrl(file));
+    } catch (err) {
+      /*
+        Utan den här fångsten föll ett fel från bildkonverteringen ut som ett
+        ohanterat promise: snurran slutade snurra och sedan hände ingenting alls.
+        Det inträffar på riktigt — en HEIC-fil vald ur biblioteket på datorn går
+        inte att avkoda — och tystnad är det sämsta svaret, för användaren
+        trycker bara igen och får samma tystnad.
+      */
+      onError?.(err?.message || 'Kunde inte läsa bilden');
     } finally {
       setBusy(false);
     }

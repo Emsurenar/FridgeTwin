@@ -28,20 +28,43 @@ const STORAGE = 'fridge_twin_mirror';
   in hela hushåll A:s lager i hushåll B, permanent och utan att någon märkte det
   förrän det stod främmande mat i kylen.
 */
-export function loadMirror(key) {
+// Rådata ur lagringen, utan nyckelkontroll. Behövs för att kunna se att det
+// ligger ett *annat* hushålls spegel där innan man skriver över den.
+function raMirror() {
   try {
     const raw = localStorage.getItem(STORAGE);
-    if (!raw) return [];
-    const { key: sparad, items } = JSON.parse(raw) || {};
-    if (!Array.isArray(items)) return [];
-    if (key && sparad !== key) return []; // spegeln hör till ett annat kylskåp
-    return items.filter(i => i && i.id && i.name);
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    return data && Array.isArray(data.items) ? data : null;
   } catch {
-    return [];
+    return null;
   }
 }
 
+export function loadMirror(key) {
+  const data = raMirror();
+  if (!data) return [];
+  if (key && data.key !== key) return []; // spegeln hör till ett annat kylskåp
+  return data.items.filter(i => i && i.id && i.name);
+}
+
 export function saveMirror(key, items) {
+  /*
+    En tom spegel för ett nytt hushåll får aldrig skriva över ett annat
+    hushålls fulla spegel.
+
+    Det finns bara en lagringsplats, så den bär ett hushåll i taget. Byter man
+    nyckel — nollställer, eller öppnar sambons delningslänk — hämtar appen
+    lagret för den nya nyckeln, och när det är tomt sparades {nyckel B, []} rakt
+    över hushåll A:s fyrtio varor. Utan Turso var de varorna bara kvar där.
+    Dialogrutan lovar uttryckligen att man kan ta sig tillbaka med sin gamla
+    nyckel; det löftet höll inte.
+
+    Ett tomt lager för det hushåll spegeln redan tillhör skrivs däremot — då har
+    man faktiskt ätit upp allt, och spegeln ska följa med.
+  */
+  const nuvarande = raMirror();
+  if (!items.length && nuvarande?.items.length && nuvarande.key !== key) return;
   try {
     localStorage.setItem(STORAGE, JSON.stringify({ key, items }));
   } catch { /* full kvot eller privat läge — spegeln är en bonus, inte ett krav */ }

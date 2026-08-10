@@ -1,5 +1,8 @@
 # FridgeTwin
 
+**Prova direkt: [fridge-twin.vercel.app](https://fridge-twin.vercel.app)** —
+öppna i mobilen och lägg till på hemskärmen, inget konto behövs.
+
 En digital tvilling av kylskåpet, byggd som mobilwebbapp med manifest och
 hemskärmsstöd. Skanna streckkoden på en
 vara så identifieras den mot Open Food Facts och hamnar i lagret — med plats,
@@ -23,6 +26,8 @@ du kan laga på det som faktiskt finns hemma.
 
 ## Kom igång
 
+Kräver [Node.js](https://nodejs.org) 20 eller senare.
+
 ```bash
 npm install
 npm run dev        # server (:8799) + vite (:5399) samtidigt
@@ -32,18 +37,34 @@ npm test           # enhetstester (se test/)
 Utan konfiguration används en lokal SQLite-fil i `data/` — inget molnkonto behövs
 för att köra igång.
 
-### AI-nyckel — två alternativ
+### AI-nyckel — en per enhet
 
-1. **Servernyckel (rekommenderas):** `ANTHROPIC_API_KEY=sk-ant-... npm run dev` — nyckeln stannar på servern, klienten går via `/api/ai`.
-2. **Klientnyckel:** klistra in nyckeln i appen under *Inställningar → AI*. Används direkt från webbläsaren när servern saknar nyckel.
+Klistra in din Anthropic-nyckel under *Inställningar → AI*. Den sparas i den
+webbläsarens `localStorage` och går därifrån **direkt till `api.anthropic.com`** —
+den passerar aldrig FridgeTwins server, och det finns ingen serversida att
+konfigurera. Delar du kylskåpet med någon lägger var och en in sin egen nyckel.
 
-Skanning, produktuppslag och lagring kostar ingenting. Bara de tre AI-funktionerna
-(fotoigenkänning, datumläsning, recept) drar tokens — sätt en **spendgräns på
-API-nyckeln hos Anthropic**, det är det enda som faktiskt begränsar kostnaden.
+Det är ett medvetet val. En nyckel i serverns miljö hade varit bekvämare, men då
+lånar varje besökare deployägarens konto: en publik adress blir en öppen kran mot
+någon annans budget, och den som betalar ser inte vem som spenderar. Per enhet
+betalar var och en för sig, och nyckeln kan återkallas utan att röra appen.
+
+Priset är att nyckeln ligger i webbläsaren och alltså är läsbar för skript på
+sidan. Därför tillåter CSP:n bara skript från appens egen origin — ingen inline,
+ingen `eval`, inget CDN — och därför ska nyckeln ha en **spendgräns hos
+Anthropic**. Det är det enda som faktiskt sätter ett tak på kostnaden.
+
+Skanning, produktuppslag och lagring kostar ingenting. Bara de tre
+AI-funktionerna (fotoigenkänning, datumläsning, recept) drar tokens.
 
 ## Deploya på Vercel
 
-1. **Importera repot** på [vercel.com/new](https://vercel.com/new). Vite känns igen automatiskt (`npm run build` → `dist/`), och `api/index.js` blir en serverless-funktion via `vercel.json`.
+Vill du köra ett eget kylskåp i stället för att låna
+[fridge-twin.vercel.app](https://fridge-twin.vercel.app):
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FEmsurenar%2FFridgeTwin)
+
+1. **Importera repot** — knappen ovan klonar det till ditt GitHub-konto och deployar, eller gör det manuellt på [vercel.com/new](https://vercel.com/new). Vite känns igen automatiskt (`npm run build` → `dist/`), och `api/index.js` blir en serverless-funktion via `vercel.json`.
 2. **Skaffa en databas** — utan den försvinner lagret vid varje omstart. På [turso.tech](https://turso.tech) (gratisnivå):
    ```bash
    turso db create fridgetwin
@@ -56,8 +77,9 @@ API-nyckeln hos Anthropic**, det är det enda som faktiskt begränsar kostnaden.
    |---|---|---|
    | `TURSO_URL` | `libsql://…turso.io` | ja, annars tappas lagret |
    | `TURSO_TOKEN` | token från steg 2 | ja |
-   | `ANTHROPIC_API_KEY` | `sk-ant-…` | nej — utan den används klientnyckeln |
-   | `ALLOWED_ORIGINS` | `https://din-app.vercel.app` | nej, men rekommenderas om AI-nyckeln ligger på servern |
+
+   Det är hela listan. Någon `ANTHROPIC_API_KEY` finns inte på servern — se
+   [AI-nyckel](#ai-nyckel--en-per-enhet).
 4. **Deploya om** efter att variablerna satts — de läses vid build, inte i efterhand.
 5. Öppna appen. Saknas Turso står det **Lagret sparas inte — varor kan försvinna** överst i alla vyer tills det är åtgärdat. `/api/health` svarar `persistent: true` när allt sitter.
 
@@ -66,6 +88,9 @@ API-nyckeln hos Anthropic**, det är det enda som faktiskt begränsar kostnaden.
 > tomma databaser, så det ser ut som att varor försvinner när man byter utrymme
 > — fast det som händer är att man växlar mellan flera lager. Samma sak vid varje
 > cold start.
+
+Lägg till appen på hemskärmen (*Dela → Lägg till på hemskärmen*) — då körs den
+i helskärm, och kameran fungerar eftersom Vercel serverar över HTTPS.
 
 ### Koppla in Turso — steg för steg
 
@@ -147,24 +172,6 @@ gamla kylskåpets varor skjutits in i det nya.
 Det gör appen användbar utan molndatabas, men det är fortfarande en nödlösning:
 spegeln bor på *en* enhet, så delat hushåll kräver Turso.
 
-Schemat skapas automatiskt vid första anropet, så det finns inget migreringssteg.
-
-Lägg till appen på hemskärmen (*Dela → Lägg till på hemskärmen*) — då körs den i helskärm, och kameran fungerar eftersom Vercel serverar över HTTPS.
-
-### Databas i produktion
-
-Sätt `TURSO_URL` (och `TURSO_TOKEN`) så flyttar lagret till Turso. Utan dem
-används en lokal fil, vilket inte håller på Vercel: där är bara `/tmp` skrivbart
-och det töms vid varje cold start. `/api/health` svarar `persistent: true` när
-Turso är inkopplat.
-
-### Skydda proxyn
-
-`/api/ai` spenderar serverns Anthropic-budget och har därför samma två spärrar
-som TimeProxy: **origin-kontroll** (sätt `ALLOWED_ORIGINS=https://din-app.vercel.app`)
-och **rate limit** (20 anrop per IP per 5 minuter, ändras med `AI_RATE_LIMIT`).
-Ingen av dem är autentisering.
-
 ## Hushållsnyckeln
 
 Klienten slumpar en nyckel vid första starten och skickar den som `X-Fridge-Key`.
@@ -187,7 +194,7 @@ skulle skanningen kräva nätverk varje gång.
 
 ```
 server/
-  app.js      Express: produktuppslag, lager-CRUD, AI-proxy
+  app.js      Express: produktuppslag och lager-CRUD (rör aldrig Anthropic)
   db.js       libSQL/Turso-klient + schema
   off.js      Open Food Facts med User-Agent och cache i products-tabellen
 src/
@@ -195,7 +202,7 @@ src/
     api.js         hushållsnyckel + fetch-lager mot /api/*
     expiry.js      kalenderdagsräkning, lägen och sortering (rena funktioner)
     scan.js        kamera + kontinuerlig wasm-avkodning
-    ai.js          Claude: bildigenkänning, datumläsning, recept
+    ai.js          Claude direkt från webbläsaren, med enhetens egen nyckel
     qr.js          QR-kod för att dela nyckeln (lazy-laddad writer)
   components/
     FridgeView          luckor, hyllor och varorna som står på dem
@@ -208,9 +215,16 @@ src/
 test/            enhetstester (npm test)
 ```
 
-Databasen har tre tabeller: `households`, `products` (både OFF-cache och appens
-eget minne av manuellt inmatade varor) och `items`. Borttagna varor får
-`removed_at` i stället för att raderas — det ger svinnstatistiken nästan gratis.
+Databasen har fyra tabeller: `households`, `products` (den globala OFF-cachen),
+`household_products` (varunamn hushållet matat in själv) och `items`. Borttagna
+varor får `removed_at` i stället för att raderas — det ger svinnstatistiken
+nästan gratis.
+
+Uppdelningen mellan `products` och `household_products` är en åtkomstgräns, inte
+en normalisering: OFF-datan är publik och delas gärna, medan ett handskrivet
+varunamn hör till ett hushåll. Låg de i samma tabell kunde vilket hushåll som
+helst skriva över vilken streckkod som helst permanent, och sökförslagen läckte
+grannens varunamn.
 
 Uppslagen mot Open Food Facts går via servern av två skäl: `User-Agent` är en
 förbjuden header i webbläsarens `fetch`, och deras läsgräns på 15 anrop/min/IP
@@ -284,16 +298,18 @@ Hushållsnyckeln är en **delningslänk, inte inloggning** — den som har nycke
 ser kylskåpet. Det är rätt avvägning för ett matlager men inte för något
 känsligare, och byggs appen ut åt det hållet behövs riktig autentisering.
 
-Deployar du med `ANTHROPIC_API_KEY` på servern gäller tre spärrar på `/api/ai`:
-hushållsnyckel krävs, `Origin` måste finnas och matcha (`ALLOWED_ORIGINS` när
-den är satt, annars samma värd), och det finns en rate limit per IP.
+**Servern har ingen AI-nyckel.** Anthropic-nyckeln är privat per enhet och går
+direkt från webbläsaren till `api.anthropic.com`, så det finns ingen proxy här
+som kan spendera någon annans budget — den vanligaste vägen till en oväntad
+räkning i den här sortens app finns alltså inte. Nyckeln bor i stället i
+`localStorage`, vilket gör CSP:n (`script-src 'self'`, ingen inline, ingen
+`eval`) till en del av skyddet, inte bara en hygienåtgärd.
 
-Ingen av dem är vattentät — hushållsnycklar delas, och en beslutsam angripare
-kan skaffa en. **Sätt en spendgräns på nyckeln hos Anthropic.** Det är det enda
-som faktiskt sätter ett tak på kostnaden.
+**Sätt en spendgräns på nyckeln hos Anthropic.** Det är det enda som faktiskt
+sätter ett tak på kostnaden.
 
-Hittar du ett säkerhetsproblem, öppna ett issue utan känsliga detaljer och
-beskriv resten via mejl.
+Hittar du ett säkerhetsproblem, använd GitHubs privata sårbarhetsrapportering
+(*Security → Report a vulnerability* på repot) i stället för ett öppet issue.
 
 ## Licens
 

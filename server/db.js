@@ -102,6 +102,24 @@ const SCHEMA = [
      PRIMARY KEY (household_id, barcode)
    )`,
   `CREATE INDEX IF NOT EXISTS idx_items_household ON items (household_id, removed_at)`,
+  /*
+    Städar bort ett unikhetsindex som fanns här en kort stund.
+
+    Tanken var att stänga glappet mellan dubblettsökningen och INSERT:en i
+    POST /api/inventory: två samtidiga anrop kunde båda hitta ingenting och
+    båda lägga in en rad. Det gjorde indexet — men det gjorde också betydligt
+    mer. UPDATE lyder under samma villkor som INSERT, så att flytta bananerna
+    från skafferiet till kylen när det redan står bananer i kylen blev ett
+    unikhetsbrott, och rutten svarade 500 "Serverfel". Detsamma gällde att
+    rätta ett bäst före-datum så att två paket fick samma, och att ångra en
+    borttagning. Alla tre är vardagliga handlingar; dubbletten indexet
+    skyddade mot är ofarlig och försvinner nästa gång varan skannas.
+
+    Fel avvägning, alltså. DROP och inte bara ett borttaget CREATE: indexet
+    ligger redan i databaser som hunnit starta med det, och skulle annars bli
+    kvar och fortsätta ge 500.
+  */
+  `DROP INDEX IF EXISTS idx_items_unik`,
 ];
 
 /*

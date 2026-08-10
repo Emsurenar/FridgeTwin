@@ -84,7 +84,8 @@ export function ExpiryPicker({ value, onChange, aiOk, onToast }) {
           style={{ marginBottom: 0 }} />
         {aiOk && (
           <PhotoButton className="btn-ghost btn-square" label="" busyLabel=""
-            aria-label="Fota bäst före-datumet" onPhoto={handlePhoto} />
+            aria-label="Fota bäst före-datumet" onPhoto={handlePhoto}
+            onError={m => onToast(m, 'danger')} />
         )}
       </div>
 

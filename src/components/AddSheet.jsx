@@ -24,13 +24,22 @@ export default function AddSheet({ defaultLocation = 'fridge', aiOk, onClose, on
   const [saving, setSaving] = useState(false);
   const inputRef = useRef(null);
 
-  // Debounce: varje tangenttryckning ska inte bli ett serveranrop.
+  /*
+    Debounce: varje tangenttryckning ska inte bli ett serveranrop.
+
+    Avbokningen gäller också svaret, inte bara timern. Skriver man vidare medan
+    ett anrop är i luften kunde det gamla svaret komma sist och skriva över
+    förslagen för det man just skrev — förslag för "mjö" under ordet "mjölk".
+  */
   useEffect(() => {
     if (picked || name.trim().length < 2) return setSuggestions([]);
+    let aktuell = true;
     const t = setTimeout(() => {
-      searchProducts(name.trim()).then(setSuggestions).catch(() => setSuggestions([]));
+      searchProducts(name.trim())
+        .then(träffar => { if (aktuell) setSuggestions(träffar); })
+        .catch(() => { if (aktuell) setSuggestions([]); });
     }, 250);
-    return () => clearTimeout(t);
+    return () => { aktuell = false; clearTimeout(t); };
   }, [name, picked]);
 
   const choose = (p) => {

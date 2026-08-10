@@ -22,7 +22,10 @@ export function loadLog() {
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter(e => e && Array.isArray(e.recipes) && e.recipes.length);
+    // id krävs: utan det går posten inte att glömma bort igen, och ett saknat
+    // id matchar dessutom alla andra saknade id:n när man försöker.
+    return parsed.filter(e => e && typeof e.id === 'string'
+      && Array.isArray(e.recipes) && e.recipes.length);
   } catch {
     return [];
   }
@@ -33,13 +36,20 @@ function write(log) {
     localStorage.setItem(STORAGE, JSON.stringify(log));
     return log;
   } catch {
-    // Full kvot: halvera loggen och försök en gång till innan vi ger upp.
+    /*
+      Full kvot: halvera loggen och försök en gång till innan vi ger upp.
+
+      Golvet på ett är inte kosmetik. Den nyaste posten ligger först, och med
+      en logg på en enda post gav floor(1/2) noll — man betalade för förslagen
+      och fick en tom logg tillbaka, vilket är det enda utfall som är sämre än
+      att inte spara alls.
+    */
+    const trimmed = log.slice(0, Math.max(1, Math.floor(log.length / 2)));
     try {
-      const trimmed = log.slice(0, Math.floor(log.length / 2));
       localStorage.setItem(STORAGE, JSON.stringify(trimmed));
       return trimmed;
     } catch {
-      return log; // minnet får duga den här sessionen
+      return log; // inget nådde lagringen — minnet får duga sessionen ut
     }
   }
 }
