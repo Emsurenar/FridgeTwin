@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { Camera, Loader2 } from 'lucide-react';
 import { fileToDataUrl } from '../lib/image';
+import { t } from '../lib/i18n';
 
 /*
   Kameraknapp byggd på <input capture="environment"> i stället för en egen
@@ -9,7 +10,7 @@ import { fileToDataUrl } from '../lib/image';
   stillbild som ska tolkas av en modell är det klart bättre. Skannern behöver
   däremot strömmen, eftersom den avkodar många bildrutor i sekunden.
 */
-export default function PhotoButton({ label, busyLabel = 'Läser…', onPhoto, onError, className = '', disabled, ...rest }) {
+export default function PhotoButton({ label, busyLabel, onPhoto, onError, className = '', disabled, ...rest }) {
   const inputRef = useRef(null);
   const [busy, setBusy] = useState(false);
 
@@ -30,7 +31,7 @@ export default function PhotoButton({ label, busyLabel = 'Läser…', onPhoto, o
         inte att avkoda — och tystnad är det sämsta svaret, för användaren
         trycker bara igen och får samma tystnad.
       */
-      onError?.(err?.message || 'Kunde inte läsa bilden');
+      onError?.(err?.message || t('Kunde inte läsa bilden'));
     } finally {
       setBusy(false);
     }
@@ -44,7 +45,7 @@ export default function PhotoButton({ label, busyLabel = 'Läser…', onPhoto, o
         onClick={() => inputRef.current?.click()} {...rest}>
         {busy ? <Loader2 size={17} className="spin" /> : <Camera size={17} />}
         {/* Tom label = ren ikonknapp */}
-        {busy ? busyLabel : label}
+        {busy ? (busyLabel ?? t('Läser…')) : label}
       </button>
     </>
   );

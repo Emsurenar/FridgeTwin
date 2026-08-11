@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
+import { t } from '../lib/i18n';
 
 /*
   Bottenarket, med den tangentbordshantering varje ark behöver.
@@ -70,7 +71,7 @@ export default function Sheet({ title, onClose, children }) {
       <div ref={arkRef} className="modal-sheet" tabIndex={-1}
         role="dialog" aria-modal="true" aria-label={title}
         onClick={e => e.stopPropagation()}>
-        <button className="ark-stang" onClick={onClose} aria-label="Stäng">
+        <button className="ark-stang" onClick={onClose} aria-label={t('Stäng')}>
           <X size={19} />
         </button>
         {children}

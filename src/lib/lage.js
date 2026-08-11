@@ -11,11 +11,12 @@
   hur mycket annat som är i sin ordning. Det är den enda mening man behöver.
 */
 import { expiryState } from './expiry.js';
+import { t } from './i18n.js';
 
-const ental = (n, en, flera) => (n === 1 ? en : flera);
+const ental = (n, en, flera) => t(n === 1 ? en : flera);
 
 export function lagesText(items, now = new Date()) {
-  if (!items.length) return { text: 'Kylskåpet är tomt.', ton: 'lugn' };
+  if (!items.length) return { text: t('Kylskåpet är tomt.'), ton: 'lugn' };
 
   let passerat = 0, idag = 0, snart = 0, vecka = 0;
   for (const item of items) {
@@ -40,5 +41,5 @@ export function lagesText(items, now = new Date()) {
   if (vecka) {
     return { tal: vecka, text: ental(vecka, 'vara går ut den här veckan.', 'varor går ut den här veckan.'), ton: 'lugn' };
   }
-  return { text: 'Allt håller sig ett tag till.', ton: 'lugn' };
+  return { text: t('Allt håller sig ett tag till.'), ton: 'lugn' };
 }

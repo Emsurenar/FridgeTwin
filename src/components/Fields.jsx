@@ -2,6 +2,7 @@ import { Minus, Plus } from 'lucide-react';
 import { addDays, toIsoDate, ISO_DATE_RE } from '../lib/expiry';
 import { fmtExpiry, LOCATIONS } from '../lib/fmt';
 import { readBestBefore } from '../lib/ai';
+import { t } from '../lib/i18n';
 import PhotoButton from './PhotoButton';
 
 // Fälten delas av inläggning och redigering — samma vara ska beskrivas likadant
@@ -11,11 +12,11 @@ export function Stepper({ value, onChange, min = 1 }) {
   return (
     <div className="stepper">
       <button className="btn-ghost" onClick={() => onChange(Math.max(min, value - 1))}
-        disabled={value <= min} aria-label="Färre">
+        disabled={value <= min} aria-label={t('Färre')}>
         <Minus size={17} />
       </button>
       <span className="stepper-value">{value}</span>
-      <button className="btn-ghost" onClick={() => onChange(value + 1)} aria-label="Fler">
+      <button className="btn-ghost" onClick={() => onChange(value + 1)} aria-label={t('Fler')}>
         <Plus size={17} />
       </button>
     </div>
@@ -27,7 +28,7 @@ export function LocationPicker({ value, onChange }) {
     <div className="segmented">
       {LOCATIONS.map(l => (
         <button key={l.id} className={value === l.id ? 'active' : ''} onClick={() => onChange(l.id)}>
-          {l.label}
+          {t(l.label)}
         </button>
       ))}
     </div>
@@ -55,11 +56,11 @@ export function ExpiryPicker({ value, onChange, aiOk, onToast }) {
     try {
       const { date, raw } = await readBestBefore(dataUrl);
       if (!date || !ISO_DATE_RE.test(date)) {
-        onToast(raw ? `Kunde inte tolka "${raw}"` : 'Hittade inget datum på bilden', 'danger');
+        onToast(raw ? t('Kunde inte tolka "{raw}"', { raw }) : t('Hittade inget datum på bilden'), 'danger');
         return;
       }
       onChange(date);
-      onToast(`Läste ${fmtExpiry(date)}`);
+      onToast(t('Läste {date}', { date: fmtExpiry(date) }));
     } catch (e) {
       onToast(e.message, 'danger');
     }
@@ -73,7 +74,7 @@ export function ExpiryPicker({ value, onChange, aiOk, onToast }) {
           return (
             <button key={q.days} className={`chip ${value === iso ? 'chip-on' : ''}`}
               onClick={() => onChange(value === iso ? '' : iso)}>
-              {q.label}
+              {t(q.label)}
             </button>
           );
         })}
@@ -84,7 +85,7 @@ export function ExpiryPicker({ value, onChange, aiOk, onToast }) {
           style={{ marginBottom: 0 }} />
         {aiOk && (
           <PhotoButton className="btn-ghost btn-square" label="" busyLabel=""
-            aria-label="Fota bäst före-datumet" onPhoto={handlePhoto}
+            aria-label={t('Fota bäst före-datumet')} onPhoto={handlePhoto}
             onError={m => onToast(m, 'danger')} />
         )}
       </div>
@@ -93,8 +94,8 @@ export function ExpiryPicker({ value, onChange, aiOk, onToast }) {
           sedan"), så ett inledande "Går ut" blev dubbelt. Versalen sätts i CSS. */}
       <p className="field-hint">
         {value
-          ? <>{fmtExpiry(value)}. <button className="link-btn" onClick={() => onChange('')}>Ta bort datum</button></>
-          : 'Utan datum kan varan inte påminna om sig själv.'}
+          ? <>{fmtExpiry(value)}. <button className="link-btn" onClick={() => onChange('')}>{t('Ta bort datum')}</button></>
+          : t('Utan datum kan varan inte påminna om sig själv.')}
       </p>
     </>
   );

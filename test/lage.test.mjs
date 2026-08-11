@@ -1,9 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { lagesText } from '../src/lib/lage.js';
+import { setLang } from '../src/lib/i18n.js';
 
 // Meningen är det första man läser när appen öppnas. Säger den fel sak — eller
 // fel numerus — är det appens ansikte som är fel.
+
+// Uttryckligen svenska: i Node beror standardspråket på miljön, och de här
+// testerna jämför mot de svenska källsträngarna.
+setLang('sv');
 
 const now = new Date(2026, 7, 4, 12, 0); // 4 aug 2026
 const vara = (expiresOn) => ({ id: expiresOn || 'x', name: 'Vara', expiresOn, count: 1, location: 'fridge' });
@@ -55,4 +60,14 @@ test('allt håller sig', () => {
 
 test('varor utan datum påverkar inte omdömet', () => {
   assert.equal(lagesText([vara(null), vara(null)], now).text, 'Allt håller sig ett tag till.');
+});
+
+test('meningen följer språkvalet', () => {
+  setLang('en');
+  try {
+    assert.equal(lagesText([vara('2026-08-01')], now).text, 'item has expired.');
+    assert.equal(lagesText([], now).text, 'The fridge is empty.');
+  } finally {
+    setLang('sv');
+  }
 });

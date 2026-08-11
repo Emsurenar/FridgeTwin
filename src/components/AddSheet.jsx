@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Package, ScanLine, Check, Camera } from 'lucide-react';
 import { searchProducts } from '../lib/api';
+import { t } from '../lib/i18n';
 import { Stepper, LocationPicker, ExpiryPicker } from './Fields';
 import Sheet from './Sheet';
 
@@ -75,23 +76,23 @@ export default function AddSheet({ defaultLocation = 'fridge', aiOk, onClose, on
   };
 
   return (
-    <Sheet title={'Lägg in en vara'} onClose={onClose}>
+    <Sheet title={t('Lägg in en vara')} onClose={onClose}>
         <div className="flex-between" style={{ marginBottom: 16 }}>
-          <h2>Lägg in en vara</h2>
+          <h2>{t('Lägg in en vara')}</h2>
           {/* De tre vägarna in i kylskåpet sitter ihop: skriv, skanna eller fota */}
           <div className="flex-row" style={{ gap: 6 }}>
             <button className="btn-ghost btn-pill" onClick={onScan}>
-              <ScanLine size={15} /> Skanna
+              <ScanLine size={15} /> {t('Skanna')}
             </button>
             {aiOk && (
-              <button className="btn-ghost btn-pill" onClick={onPhoto} aria-label="Identifiera med foto">
+              <button className="btn-ghost btn-pill" onClick={onPhoto} aria-label={t('Identifiera med foto')}>
                 <Camera size={15} />
               </button>
             )}
           </div>
         </div>
 
-        <label htmlFor="add-name">Vad är det?</label>
+        <label htmlFor="add-name">{t('Vad är det?')}</label>
         <input id="add-name" ref={inputRef} autoFocus value={name}           onChange={e => { setName(e.target.value); setPicked(null); }}
           style={{ marginBottom: suggestions.length ? 4 : 12 }} />
 
@@ -105,7 +106,7 @@ export default function AddSheet({ defaultLocation = 'fridge', aiOk, onClose, on
                 <span className="truncate" style={{ flex: 1, textAlign: 'left' }}>
                   <span className="item-name truncate">{p.name}</span>
                   <span className="item-sub truncate">
-                    {[p.brand, p.quantity].filter(Boolean).join(' · ') || 'Känd sedan tidigare'}
+                    {[p.brand, p.quantity].filter(Boolean).join(' · ') || t('Känd sedan tidigare')}
                   </span>
                 </span>
               </button>
@@ -120,28 +121,28 @@ export default function AddSheet({ defaultLocation = 'fridge', aiOk, onClose, on
             </div>
             <span className="truncate" style={{ flex: 1 }}>
               <span className="item-sub truncate">
-                <Check size={12} /> {[picked.brand, picked.quantity].filter(Boolean).join(' · ') || 'Känd vara'}
+                <Check size={12} /> {[picked.brand, picked.quantity].filter(Boolean).join(' · ') || t('Känd vara')}
               </span>
             </span>
-            <button className="link-btn" onClick={clearPick}>Ändra</button>
+            <button className="link-btn" onClick={clearPick}>{t('Ändra')}</button>
           </div>
         )}
 
         <div className="grid-2" style={{ alignItems: 'end', marginBottom: 16 }}>
           <div>
-            <label>Antal</label>
+            <label>{t('Antal')}</label>
             <Stepper value={count} onChange={setCount} />
           </div>
         </div>
 
-        <label>Var ska den ligga?</label>
+        <label>{t('Var ska den ligga?')}</label>
         <LocationPicker value={location} onChange={setLocation} />
 
-        <label>Bäst före</label>
+        <label>{t('Bäst före')}</label>
         <ExpiryPicker value={expiresOn} onChange={setExpiresOn} aiOk={aiOk} onToast={onToast} />
 
         <button className="sheet-cta" onClick={save} disabled={!name.trim() || saving}>
-          {saving ? 'Lägger in…' : 'Lägg in'}
+          {saving ? t('Lägger in…') : t('Lägg in')}
         </button>
     </Sheet>
   );

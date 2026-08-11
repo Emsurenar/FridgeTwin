@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { QrCode, Copy, Trash2, ExternalLink, AlertTriangle, UploadCloud } from 'lucide-react';
 import { getKey, setKey, shareUrl, getHistory, syncItems } from '../lib/api';
 import { loadMirror } from '../lib/mirror';
 import { getApiKey, setApiKey, getModel, setModel, MODELS } from '../lib/ai';
+import { t, getLang, setLang, subscribeLang, LANGS } from '../lib/i18n';
 import { qrSvg } from '../lib/qr';
 
 export default function SettingsView({ persistent, onKeyChanged, onReload, onToast }) {
@@ -14,6 +15,7 @@ export default function SettingsView({ persistent, onKeyChanged, onReload, onToa
   const [waste, setWaste] = useState(null);
   const [pushing, setPushing] = useState(false);
   const [mirrorCount, setMirrorCount] = useState(() => loadMirror(getKey()).length);
+  const lang = useSyncExternalStore(subscribeLang, getLang);
   const isLocalhost = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(window.location.hostname);
 
   const pushMirror = async () => {
@@ -21,8 +23,8 @@ export default function SettingsView({ persistent, onKeyChanged, onReload, onToa
     try {
       const { restored } = await syncItems(loadMirror(getKey()));
       onToast(restored
-        ? `${restored} ${restored === 1 ? 'vara lades' : 'varor lades'} tillbaka`
-        : 'Servern hade redan allt');
+        ? (restored === 1 ? t('1 vara lades tillbaka') : t('{n} varor lades tillbaka', { n: restored }))
+        : t('Servern hade redan allt'));
       // onReload och inte onKeyChanged: den senare nollställer spegeln, vilket
       // är precis vad man inte vill direkt efter att ha skickat upp den.
       if (restored) onReload();
@@ -56,9 +58,9 @@ export default function SettingsView({ persistent, onKeyChanged, onReload, onToa
   const copyLink = async () => {
     try {
       await navigator.clipboard.writeText(shareUrl());
-      onToast('Länken kopierad');
+      onToast(t('Länken kopierad'));
     } catch {
-      onToast('Kunde inte kopiera — markera länken i stället', 'danger');
+      onToast(t('Kunde inte kopiera — markera länken i stället'), 'danger');
     }
   };
 
@@ -69,7 +71,7 @@ export default function SettingsView({ persistent, onKeyChanged, onReload, onToa
       setKeyInput('');
       setQr(null);
       onKeyChanged();
-      onToast('Bytte kylskåp');
+      onToast(t('Bytte kylskåp'));
     } catch (e) {
       onToast(e.message, 'danger');
     }
@@ -83,8 +85,8 @@ export default function SettingsView({ persistent, onKeyChanged, onReload, onToa
   return (
     <>
       <header className="sidhuvud">
-        <h1>Inställningar</h1>
-        <p>Hushållsnyckel, AI och svinn.</p>
+        <h1>{t('Inställningar')}</h1>
+        <p>{t('Hushållsnyckel, AI och svinn.')}</p>
       </header>
 
       {/* Deployad utan Turso är det värsta läget: allt fungerar, tills servern
@@ -95,17 +97,30 @@ export default function SettingsView({ persistent, onKeyChanged, onReload, onToa
         <div className="banner banner-warn" style={{ marginTop: 16 }}>
           <AlertTriangle size={17} />
           <span>
-            Servern saknar <span className="mono">TURSO_URL</span> — lagret ligger på ett tillfälligt
-            filsystem och försvinner när servern startar om. Se README:n.
+            {t('Servern saknar')} <span className="mono">TURSO_URL</span>
+            {' '}{t('— lagret ligger på ett tillfälligt filsystem och försvinner när servern startar om. Se README:n.')}
           </span>
         </div>
       )}
 
-      <h3 className="eyebrow">Hushåll</h3>
+      {/* Först av allt: den som inte läser svenska ska inte behöva leta sig
+          igenom en svensk sida för att hitta bytet. */}
+      <h3 className="eyebrow">{t('Språk')}</h3>
+      <div className="panel">
+        <div className="segmented" style={{ margin: 0 }}>
+          {LANGS.map(l => (
+            <button key={l.id} className={lang === l.id ? 'active' : ''}
+              aria-pressed={lang === l.id} onClick={() => setLang(l.id)}>
+              {l.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <h3 className="eyebrow">{t('Hushåll')}</h3>
       <div className="panel">
         <p style={{ marginBottom: 12 }}>
-          Alla som har den här nyckeln ser samma kylskåp. Dela den med hushållet — och bara med dem,
-          nyckeln är hela åtkomsten.
+          {t('Alla som har den här nyckeln ser samma kylskåp. Dela den med hushållet — och bara med dem, nyckeln är hela åtkomsten.')}
         </p>
         {/* --bg-base och inte --bg-elevated: panelen är vit nu, så nyckeln hade
             försvunnit in i sin egen bakgrund. */}
@@ -115,48 +130,49 @@ export default function SettingsView({ persistent, onKeyChanged, onReload, onToa
         }}>{key}</div>
 
         <div className="grid-2">
-          <button className="btn-ghost" onClick={copyLink}><Copy size={15} /> Kopiera</button>
-          <button className="btn-ghost" onClick={showQr}><QrCode size={15} /> {qr ? 'Dölj' : 'QR-kod'}</button>
+          <button className="btn-ghost" onClick={copyLink}><Copy size={15} /> {t('Kopiera')}</button>
+          <button className="btn-ghost" onClick={showQr}><QrCode size={15} /> {qr ? t('Dölj') : t('QR-kod')}</button>
         </div>
 
         {qr && <div className="qr-box" dangerouslySetInnerHTML={{ __html: qr }} />}
       </div>
 
       <div className="panel">
-        <label>Anslut till ett annat kylskåp</label>
+        <label>{t('Anslut till ett annat kylskåp')}</label>
         <input value={keyInput} onChange={e => setKeyInput(e.target.value)}
-          placeholder="ft-… eller en delad länk"
+          placeholder={t('ft-… eller en delad länk')}
           autoCapitalize="off" autoCorrect="off" />
-        <button className="btn-ghost" onClick={useKey} disabled={!keyInput.trim()}>Byt nyckel</button>
+        <button className="btn-ghost" onClick={useKey} disabled={!keyInput.trim()}>{t('Byt nyckel')}</button>
       </div>
 
       <h3 className="eyebrow">AI</h3>
       <div className="panel">
         <p style={{ marginBottom: 12 }}>
-          Fotoigenkänning, datumläsning och recept använder Claude. Nyckeln är din egen och
-          sparas bara i den här webbläsaren — den skickas aldrig till FridgeTwins server, och
-          andra i hushållet lägger in sin egen.
+          {t('Fotoigenkänning, datumläsning och recept använder Claude. Nyckeln är din egen och sparas bara i den här webbläsaren — den skickas aldrig till FridgeTwins server, och andra i hushållet lägger in sin egen.')}
         </p>
-        <label>Anthropic API-nyckel</label>
+        <label>{t('Anthropic API-nyckel')}</label>
         <input type="password" value={apiKey} onChange={e => saveApiKey(e.target.value)}
           autoCapitalize="off" autoCorrect="off" spellCheck={false} />
         <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noreferrer"
           className="item-sub flex-row" style={{ gap: 5, marginBottom: 16 }}>
-          Hämta en nyckel <ExternalLink size={12} />
+          {t('Hämta en nyckel')} <ExternalLink size={12} />
         </a>
-        <label>Modell</label>
+        <label>{t('Modell')}</label>
         <select value={model} onChange={e => { setModelState(e.target.value); setModel(e.target.value); }}>
-          {MODELS.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
+          {MODELS.map(m => <option key={m.id} value={m.id}>{t(m.label)}</option>)}
         </select>
       </div>
 
       {waste && waste.total > 0 && (
         <>
-          <h3 className="eyebrow">Svinn</h3>
+          <h3 className="eyebrow">{t('Svinn')}</h3>
           <div className="panel">
             <p>
-              Av {waste.total} borttagna varor har {waste.thrown} slängts
-              {' '}({Math.round((waste.thrown / waste.total) * 100)} %).
+              {t('Av {total} borttagna varor har {thrown} slängts ({pct} %).', {
+                total: waste.total,
+                thrown: waste.thrown,
+                pct: Math.round((waste.thrown / waste.total) * 100),
+              })}
             </p>
           </div>
         </>
@@ -170,36 +186,36 @@ export default function SettingsView({ persistent, onKeyChanged, onReload, onToa
         en beständig server hade återuppväckt varor någon annan i hushållet
         medvetet tagit bort.
       */}
-      <h3 className="eyebrow">Flytta hit lagret</h3>
+      <h3 className="eyebrow">{t('Flytta hit lagret')}</h3>
       <div className="panel">
         <p style={{ marginBottom: 12 }}>
-          Den här telefonen har en egen kopia av lagret. Har du precis kopplat in en
-          databas, eller ser kylskåpet tommare ut än det ska, kan du skicka upp kopian.
-          Varor som redan finns på servern lämnas i fred.
+          {t('Den här telefonen har en egen kopia av lagret. Har du precis kopplat in en databas, eller ser kylskåpet tommare ut än det ska, kan du skicka upp kopian. Varor som redan finns på servern lämnas i fred.')}
         </p>
         <button className="btn-ghost" onClick={pushMirror} disabled={pushing || !mirrorCount}>
           <UploadCloud size={15} />
-          {pushing ? 'Skickar…'
-            : mirrorCount ? `Skicka upp ${mirrorCount} ${mirrorCount === 1 ? 'vara' : 'varor'}` : 'Inget sparat på den här telefonen'}
+          {pushing ? t('Skickar…')
+            : mirrorCount
+            ? (mirrorCount === 1 ? t('Skicka upp 1 vara') : t('Skicka upp {n} varor', { n: mirrorCount }))
+            : t('Inget sparat på den här telefonen')}
         </button>
       </div>
 
-      <h3 className="eyebrow">Om</h3>
+      <h3 className="eyebrow">{t('Om')}</h3>
       <div className="panel">
         <p style={{ marginBottom: 8 }}>
-          Produktdata kommer från <a href="https://world.openfoodfacts.org" target="_blank" rel="noreferrer">Open Food Facts</a>,
-          en öppen databas (ODbL). Saknas en vara kan du lägga till den där — och den du matar in här känns igen nästa gång.
+          {t('Produktdata kommer från')} <a href="https://world.openfoodfacts.org" target="_blank" rel="noreferrer">Open Food Facts</a>
+          {t(', en öppen databas (ODbL). Saknas en vara kan du lägga till den där — och den du matar in här känns igen nästa gång.')}
         </p>
-        <p>Lagring: {persistent ? 'Turso' : 'lokal databasfil'}.</p>
+        <p>{t('Lagring:')} {persistent ? 'Turso' : t('lokal databasfil')}.</p>
       </div>
 
       <button className="btn-ghost" style={{ marginTop: 16 }}
         onClick={() => {
-          if (!confirm('Nollställ nyckeln? Du får ett nytt, tomt kylskåp. Spara nuvarande nyckel först om du vill tillbaka.')) return;
+          if (!confirm(t('Nollställ nyckeln? Du får ett nytt, tomt kylskåp. Spara nuvarande nyckel först om du vill tillbaka.'))) return;
           navigator.clipboard?.writeText(key).catch(() => {});
           onKeyChanged(true);
         }}>
-        <Trash2 size={15} /> Nollställ hushållsnyckel
+        <Trash2 size={15} /> {t('Nollställ hushållsnyckel')}
       </button>
     </>
   );

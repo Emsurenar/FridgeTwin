@@ -1,11 +1,13 @@
 // Foton från telefonens kamera är 3–5 MB. Innan de skickas till Claude skalas
 // de ner: en 1024px bred JPEG räcker gott för att läsa ett bäst före-datum
 // eller känna igen en gurka, och kostar en bråkdel så många tokens.
+import { t } from './i18n.js';
+
 const MAX_WIDTH = 1024;
 
 export function fileToDataUrl(file, maxWidth = MAX_WIDTH) {
   return new Promise((resolve, reject) => {
-    if (!file?.type?.startsWith('image/')) return reject(new Error('Filen är ingen bild'));
+    if (!file?.type?.startsWith('image/')) return reject(new Error(t('Filen är ingen bild')));
     const url = URL.createObjectURL(file);
     const img = new Image();
     img.onload = () => {
@@ -19,7 +21,7 @@ export function fileToDataUrl(file, maxWidth = MAX_WIDTH) {
     };
     img.onerror = () => {
       URL.revokeObjectURL(url);
-      reject(new Error('Kunde inte läsa bilden'));
+      reject(new Error(t('Kunde inte läsa bilden')));
     };
     img.src = url;
   });

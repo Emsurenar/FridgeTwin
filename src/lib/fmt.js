@@ -1,6 +1,18 @@
 import { daysUntil, parseIsoDate } from './expiry.js';
+import { t, getLang } from './i18n.js';
 
-const MONTHS = ['jan', 'feb', 'mars', 'april', 'maj', 'juni', 'juli', 'aug', 'sep', 'okt', 'nov', 'dec'];
+// Månads- och veckodagsnamn ligger här och inte i ordboken: de är listor, inte
+// meningar, och slås upp med index i stället för nyckel.
+const MONTHS = {
+  sv: ['jan', 'feb', 'mars', 'april', 'maj', 'juni', 'juli', 'aug', 'sep', 'okt', 'nov', 'dec'],
+  en: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+};
+const WEEKDAYS = {
+  sv: ['sön', 'mån', 'tis', 'ons', 'tors', 'fre', 'lör'],
+  en: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+};
+const manader = () => MONTHS[getLang()] || MONTHS.sv;
+const veckodagar = () => WEEKDAYS[getLang()] || WEEKDAYS.sv;
 
 export const LOCATIONS = [
   { id: 'fridge', label: 'Kylen' },
@@ -8,26 +20,24 @@ export const LOCATIONS = [
   { id: 'pantry', label: 'Skafferiet' },
 ];
 
-export const locationLabel = (id) => LOCATIONS.find(l => l.id === id)?.label || 'Kylen';
+export const locationLabel = (id) => t(LOCATIONS.find(l => l.id === id)?.label || 'Kylen');
 
 // Plats är inte längre en flik utan en egenskap på raden, och där finns bara
 // plats för en bokstav. K/F/S räcker när utrymmena är tre.
 const GLYPHS = { fridge: 'K', freezer: 'F', pantry: 'S' };
 export const locationGlyph = (id) => GLYPHS[id] || 'K';
 
-const WEEKDAYS = ['sön', 'mån', 'tis', 'ons', 'tors', 'fre', 'lör'];
-
-// Dagens datum är referenspunkten för varenda \"om 3 dagar\" på sidan, och hör
+// Dagens datum är referenspunkten för varenda "om 3 dagar" på sidan, och hör
 // därför hemma överst.
 export function fmtToday(now = new Date()) {
-  return `${WEEKDAYS[now.getDay()]} ${now.getDate()} ${MONTHS[now.getMonth()]}`;
+  return `${veckodagar()[now.getDay()]} ${now.getDate()} ${manader()[now.getMonth()]}`;
 }
 
 export function fmtDate(iso) {
   const d = parseIsoDate(iso);
   if (!d) return '';
   const sameYear = d.getFullYear() === new Date().getFullYear();
-  return `${d.getDate()} ${MONTHS[d.getMonth()]}${sameYear ? '' : ` ${d.getFullYear()}`}`;
+  return `${d.getDate()} ${manader()[d.getMonth()]}${sameYear ? '' : ` ${d.getFullYear()}`}`;
 }
 
 // Kort text för lagerlistan. Håller sig till dagar upp till två veckor —
@@ -35,11 +45,11 @@ export function fmtDate(iso) {
 export function fmtExpiry(iso) {
   const days = daysUntil(iso);
   if (days === null) return null;
-  if (days < -1) return `gick ut för ${Math.abs(days)} dagar sedan`;
-  if (days === -1) return 'gick ut i går';
-  if (days === 0) return 'går ut i dag';
-  if (days === 1) return 'går ut i morgon';
-  if (days <= 14) return `om ${days} dagar`;
+  if (days < -1) return t('gick ut för {n} dagar sedan', { n: Math.abs(days) });
+  if (days === -1) return t('gick ut i går');
+  if (days === 0) return t('går ut i dag');
+  if (days === 1) return t('går ut i morgon');
+  if (days <= 14) return t('om {n} dagar', { n: days });
   return fmtDate(iso);
 }
 
@@ -48,11 +58,11 @@ export function fmtExpiry(iso) {
 export function fmtExpiryShort(iso) {
   const days = daysUntil(iso);
   if (days === null) return null;
-  if (days < -1) return `${Math.abs(days)} d sedan`;
-  if (days === -1) return 'i går';
-  if (days === 0) return 'i dag';
-  if (days === 1) return 'i morgon';
-  if (days <= 14) return `${days} dagar`;
+  if (days < -1) return t('{n} d sedan', { n: Math.abs(days) });
+  if (days === -1) return t('i går');
+  if (days === 0) return t('i dag');
+  if (days === 1) return t('i morgon');
+  if (days <= 14) return t('{n} dagar', { n: days });
   return fmtDate(iso);
 }
 
@@ -63,12 +73,12 @@ export function fmtExpiryShort(iso) {
 */
 export function fmtBandExpiry(iso) {
   const days = daysUntil(iso);
-  if (days === null) return 'inget datum';
-  if (days < -1) return `${Math.abs(days)} dagar sedan`;
-  if (days === -1) return 'i går';
-  if (days === 0) return 'i dag';
-  if (days === 1) return 'i morgon';
-  if (days <= 14) return `om ${days} dagar`;
+  if (days === null) return t('inget datum');
+  if (days < -1) return t('{n} dagar sedan', { n: Math.abs(days) });
+  if (days === -1) return t('i går');
+  if (days === 0) return t('i dag');
+  if (days === 1) return t('i morgon');
+  if (days <= 14) return t('om {n} dagar', { n: days });
   return fmtDate(iso);
 }
 
@@ -88,7 +98,7 @@ export function monogram(name) {
 }
 
 export const fmtCount = (item) =>
-  item.count > 1 ? `${item.count} st` : (item.quantity || '');
+  item.count > 1 ? t('{n} st', { n: item.count }) : (item.quantity || '');
 
 // Tidsstämpel i receptloggen. Klockslag är det som skiljer två körningar samma
 // kväll åt, så det står alltid med — datumet bara när det inte är i dag.
@@ -99,7 +109,7 @@ export function fmtLogTime(iso) {
   const time = `${p(d.getHours())}:${p(d.getMinutes())}`;
   const today = new Date();
   const yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
-  if (d.toDateString() === today.toDateString()) return `i dag ${time}`;
-  if (d.toDateString() === yesterday.toDateString()) return `i går ${time}`;
-  return `${d.getDate()} ${MONTHS[d.getMonth()]} ${time}`;
+  if (d.toDateString() === today.toDateString()) return t('i dag {time}', { time });
+  if (d.toDateString() === yesterday.toDateString()) return t('i går {time}', { time });
+  return `${d.getDate()} ${manader()[d.getMonth()]} ${time}`;
 }

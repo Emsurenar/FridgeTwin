@@ -5,6 +5,7 @@ import { expiryState, isUrgent } from '../lib/expiry';
 import { fmtLogTime } from '../lib/fmt';
 import { matchUses, matchCount } from '../lib/recipes';
 import { getRating } from '../lib/ratings';
+import { t } from '../lib/i18n';
 
 /*
   Förslagen hämtas bara när man ber om dem — ett automatiskt anrop vid varje
@@ -29,7 +30,7 @@ function Anvander({ uses, items }) {
 
   return (
     <div className="ratt-block">
-      <h4 className="ratt-etikett">{hemma ? 'Tömmer ur kylskåpet' : 'Använder'}</h4>
+      <h4 className="ratt-etikett">{t(hemma ? 'Tömmer ur kylskåpet' : 'Använder')}</h4>
       <div className="ratt-varor">
         {matchade.map(({ label, item }, i) => (
           item ? (
@@ -60,10 +61,10 @@ function Anvander({ uses, items }) {
 function Betyg({ title, value, onRate }) {
   return (
     <div className="betyg">
-      <div className="betyg-stjarnor" role="group" aria-label={`Betygsätt ${title}`}>
+      <div className="betyg-stjarnor" role="group" aria-label={t('Betygsätt {title}', { title })}>
         {[1, 2, 3, 4, 5].map(n => (
           <button key={n} className={`stjarna ${n <= value ? 'stjarna-pa' : ''}`}
-            aria-label={`${n} av 5`} aria-pressed={n === value}
+            aria-label={t('{n} av 5', { n })} aria-pressed={n === value}
             onClick={() => onRate(title, n)}>
             <Star size={19} fill={n <= value ? 'currentColor' : 'none'} strokeWidth={1.8} />
           </button>
@@ -86,7 +87,7 @@ function Ratt({ recipe, items, betyg, onRate }) {
 
       {recipe.missing?.length > 0 && (
         <div className="ratt-block">
-          <h4 className="ratt-etikett ratt-etikett-varm">Behöver köpas</h4>
+          <h4 className="ratt-etikett ratt-etikett-varm">{t('Behöver köpas')}</h4>
           <div className="ratt-varor">
             {recipe.missing.map(m => (
               <span key={m} className="ratt-vara ratt-vara-saknas">{m}</span>
@@ -117,20 +118,20 @@ export default function RecipesView({ items, aiOk, busy, log, ratings, onRate, o
   return (
     <>
       <header className="sidhuvud">
-        <h1>Vad kan jag laga?</h1>
+        <h1>{t('Vad kan jag laga?')}</h1>
         <p>
           {!items.length
-            ? 'Lagret är tomt — skanna in något först.'
+            ? t('Lagret är tomt — skanna in något först.')
             : urgent.length
-            ? `Förslagen prioriterar ${urgent.map(i => i.name).slice(0, 3).join(', ')}.`
-            : 'Förslagen utgår från vad som finns hemma just nu.'}
+            ? t('Förslagen prioriterar {list}.', { list: urgent.map(i => i.name).slice(0, 3).join(', ') })
+            : t('Förslagen utgår från vad som finns hemma just nu.')}
         </p>
       </header>
 
       {!aiOk && (
         <div className="panel">
-          <p style={{ marginBottom: 14 }}>Receptförslag kräver en Anthropic-nyckel.</p>
-          <button className="btn-ghost" onClick={onGoToSettings}>Öppna inställningar</button>
+          <p style={{ marginBottom: 14 }}>{t('Receptförslag kräver en Anthropic-nyckel.')}</p>
+          <button className="btn-ghost" onClick={onGoToSettings}>{t('Öppna inställningar')}</button>
         </div>
       )}
 
@@ -139,39 +140,39 @@ export default function RecipesView({ items, aiOk, busy, log, ratings, onRate, o
           utvecklarverktyg. */}
       {aiOk && (
         <div className="panel">
-          <label id="meal-label">Måltid</label>
+          <label id="meal-label">{t('Måltid')}</label>
           <div className="segmented meal-picker" role="group" aria-labelledby="meal-label">
             {MEALS.map(m => (
               <button key={m.id} className={meal === m.id ? 'active' : ''}
                 onClick={() => setMeal(m.id)} aria-pressed={meal === m.id}>
-                {m.label}
+                {t(m.label)}
               </button>
             ))}
           </div>
 
-          <label htmlFor="recipe-wish">Något särskilt?</label>
+          <label htmlFor="recipe-wish">{t('Något särskilt?')}</label>
           <input id="recipe-wish" value={request} maxLength={400}
-            placeholder="Vegetariskt, snabbt, barnvänligt…"
+            placeholder={t('Vegetariskt, snabbt, barnvänligt…')}
             onChange={e => setRequest(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && !busy && items.length && run()} />
 
           <button style={{ marginTop: 16 }} onClick={run} disabled={busy || !items.length}>
             {busy ? <Loader2 size={17} className="spin" /> : <ChefHat size={17} />}
-            {busy ? 'Tänker…' : 'Föreslå rätter'}
+            {busy ? t('Tänker…') : t('Föreslå rätter')}
           </button>
 
           {/* Att det går att gå härifrån är hela poängen — säg det, annars står
               man kvar och väntar på en snurra. */}
           {busy && (
             <p style={{ marginTop: 12, fontSize: '0.85rem' }}>
-              Du kan gå till kylskåpet under tiden. Förslagen dyker upp här när de är klara.
+              {t('Du kan gå till kylskåpet under tiden. Förslagen dyker upp här när de är klara.')}
             </p>
           )}
         </div>
       )}
 
       {aiOk && !log.length && !busy && items.length > 0 && (
-        <p className="lugnt">Inga förslag än</p>
+        <p className="lugnt">{t('Inga förslag än')}</p>
       )}
 
       {log.map(entry => (
@@ -180,10 +181,10 @@ export default function RecipesView({ items, aiOk, busy, log, ratings, onRate, o
             {/* "Allt · i dag 19:42" läser illa — utan vald måltid är det bara
                 förslag, och då säger rubriken det. */}
             <h3 className="truncate">
-              {entry.meal === 'any' ? 'Förslag' : mealLabel(entry.meal)} · {fmtLogTime(entry.at)}
+              {entry.meal === 'any' ? t('Förslag') : t(mealLabel(entry.meal))} · {fmtLogTime(entry.at)}
             </h3>
             <button className="btn-icon" onClick={() => onForget(entry.id)}
-              aria-label={`Ta bort förslagen från ${fmtLogTime(entry.at)}`}>
+              aria-label={t('Ta bort förslagen från {time}', { time: fmtLogTime(entry.at) })}>
               <X size={16} />
             </button>
           </div>
@@ -197,8 +198,8 @@ export default function RecipesView({ items, aiOk, busy, log, ratings, onRate, o
 
       {log.length > 1 && (
         <button className="btn-ghost" style={{ marginTop: 20 }}
-          onClick={() => { if (confirm('Rensa hela receptloggen?')) onClear(); }}>
-          Rensa loggen
+          onClick={() => { if (confirm(t('Rensa hela receptloggen?'))) onClear(); }}>
+          {t('Rensa loggen')}
         </button>
       )}
     </>

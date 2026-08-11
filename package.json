@@ -1,7 +1,7 @@
 {
   "name": "fridgetwin",
   "version": "1.0.0",
-  "description": "En digital tvilling av kylskåpet. Skanna streckkoder, håll koll på bäst före-datum och laga mat på det som finns hemma.",
+  "description": "A digital twin of your fridge. Scan barcodes, track best-before dates, and cook from what you have at home.",
   "license": "MIT",
   "author": "Emre Sunar",
   "repository": {
@@ -14,12 +14,11 @@
   },
   "keywords": [
     "pwa",
-    "matsvinn",
-    "streckkod",
-    "kylskåp",
+    "food-waste",
+    "barcode",
+    "fridge",
     "open-food-facts",
-    "anthropic",
-    "svenska"
+    "anthropic"
   ],
   "private": true,
   "type": "module",

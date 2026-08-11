@@ -16,6 +16,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { todayIso } from './expiry';
 import { locationLabel } from './fmt';
 import { ratingsForPrompt } from './ratings';
+import { t, getLang } from './i18n';
 
 const KEY_STORAGE = 'fridge_twin_api_key';
 const MODEL_STORAGE = 'fridge_twin_model';
@@ -108,7 +109,7 @@ function anthropicFor(apiKey) {
 */
 async function aiRequest({ system, messages, maxTokens = 4000, schema }) {
   const apiKey = getApiKey();
-  if (!apiKey) throw new AiError('Ingen AI-nyckel på den här enheten. Lägg in en under Inställningar.');
+  if (!apiKey) throw new AiError(t('Ingen AI-nyckel på den här enheten. Lägg in en under Inställningar.'));
   try {
     return extractText(await anthropicFor(apiKey).messages.create({
       model: getModel(),
@@ -121,21 +122,21 @@ async function aiRequest({ system, messages, maxTokens = 4000, schema }) {
     if (e instanceof AiError) throw e;
     // Fel nyckel är det enda felet användaren själv kan åtgärda, så det säger
     // vi rakt ut i stället för att skicka vidare Anthropics engelska text.
-    if (e?.status === 401) throw new AiError('Nyckeln avvisades. Kontrollera den under Inställningar.');
-    if (e?.status === 429) throw new AiError('För många anrop mot Anthropic. Vänta en stund.');
-    if (e?.status === 529 || e?.status >= 500) throw new AiError('Anthropic svarar inte just nu. Försök igen om en stund.');
+    if (e?.status === 401) throw new AiError(t('Nyckeln avvisades. Kontrollera den under Inställningar.'));
+    if (e?.status === 429) throw new AiError(t('För många anrop mot Anthropic. Vänta en stund.'));
+    if (e?.status === 529 || e?.status >= 500) throw new AiError(t('Anthropic svarar inte just nu. Försök igen om en stund.'));
     // Timeout och avbrott har varken .status eller svensk text i SDK:n, och
     // "Request timed out." mitt i en i övrigt svensk app säger inget om vad man
     // ska göra åt saken.
     if (/timed? ?out|aborted|network|fetch failed/i.test(e?.message || '')) {
-      throw new AiError('Anropet tog för lång tid. Kontrollera uppkopplingen och försök igen.');
+      throw new AiError(t('Anropet tog för lång tid. Kontrollera uppkopplingen och försök igen.'));
     }
-    throw new AiError(e?.error?.error?.message || e.message || 'AI-anropet misslyckades.');
+    throw new AiError(e?.error?.error?.message || e.message || t('AI-anropet misslyckades.'));
   }
 }
 
 function extractText(msg) {
-  if (msg.stop_reason === 'refusal') throw new AiError('AI:n avböjde förfrågan.');
+  if (msg.stop_reason === 'refusal') throw new AiError(t('AI:n avböjde förfrågan.'));
   const text = (msg.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
   /*
     max_tokens är ett tak för tänkande *plus* svarstext, och standardmodellen
@@ -145,10 +146,10 @@ function extractText(msg) {
   */
   if (msg.stop_reason === 'max_tokens') {
     throw new AiError(text
-      ? 'Svaret hann inte bli klart. Försök igen.'
-      : 'Modellen hann inte svara klart. Försök igen, eller välj en annan modell under Inställningar.');
+      ? t('Svaret hann inte bli klart. Försök igen.')
+      : t('Modellen hann inte svara klart. Försök igen, eller välj en annan modell under Inställningar.'));
   }
-  if (!text) throw new AiError('Tomt svar från AI:n.');
+  if (!text) throw new AiError(t('Tomt svar från AI:n.'));
   return text;
 }
 
@@ -158,16 +159,25 @@ function parseJson(text) {
   } catch {
     const m = text.match(/\{[\s\S]*\}/);
     if (m) { try { return JSON.parse(m[0]); } catch { /* faller igenom */ } }
-    throw new AiError('Kunde inte tolka AI-svaret.');
+    throw new AiError(t('Kunde inte tolka AI-svaret.'));
   }
 }
 
 // 'data:image/jpeg;base64,XXX' → Anthropics bildblock
 function imageBlock(dataUrl) {
   const m = /^data:(image\/[a-z+]+);base64,(.+)$/.exec(dataUrl || '');
-  if (!m) throw new AiError('Ogiltig bild.');
+  if (!m) throw new AiError(t('Ogiltig bild.'));
   return { type: 'image', source: { type: 'base64', media_type: m[1], data: m[2] } };
 }
+
+/*
+  Modellen svarar på appens språk — namn, kommentarer och recepttext. Raden
+  ligger i systemprompten och inte i schemat, för det är en regel för svaret,
+  inte en beskrivning av formatet.
+*/
+const svarsSprak = () => (getLang() === 'sv'
+  ? 'Svara på svenska: alla namn, kommentarer och texter på svenska.'
+  : 'Answer in English: every name, note and text field in English.');
 
 const nullable = (t) => ({ anyOf: [{ type: t }, { type: 'null' }] });
 
@@ -181,7 +191,7 @@ const IDENTIFY_SCHEMA = {
       items: {
         type: 'object',
         properties: {
-          name: { type: 'string', description: 'Varans namn på svenska, t.ex. "Bananer", "Gul lök"' },
+          name: { type: 'string', description: 'Varans namn, t.ex. "Bananer", "Gul lök"' },
           count: { type: 'number', description: 'Antal du ser. 1 om det är oklart eller en förpackning' },
           location: { type: 'string', description: "Var varan hör hemma: 'fridge', 'freezer' eller 'pantry'" },
           shelfLifeDays: { ...nullable('number'), description: 'Typisk hållbarhet i dagar från idag, null om osäkert' },
@@ -191,21 +201,25 @@ const IDENTIFY_SCHEMA = {
         additionalProperties: false,
       },
     },
-    note: { type: 'string', description: 'En kort kommentar på svenska om något är svårt att se' },
+    note: { type: 'string', description: 'En kort kommentar om något är svårt att se' },
   },
   required: ['items', 'note'],
   additionalProperties: false,
 };
 
 export async function identifyItems(imageDataUrl) {
+  const vardagsnamn = getLang() === 'sv'
+    ? '- Använd vardagliga svenska namn ("Gurka", inte "Cucumis sativus").'
+    : '- Use everyday English names ("Cucumber", not "Cucumis sativus").';
   const system = `Du identifierar matvaror på foton för en kylskåpsapp.
 
 Regler:
 - Lista bara det du faktiskt ser. Gissa aldrig till dig varor för att fylla ut listan.
-- Använd vardagliga svenska namn ("Gurka", inte "Cucumis sativus").
+${vardagsnamn}
 - Slå ihop identiska varor till en post med rätt antal.
 - Är bilden suddig eller varan skymd: hoppa hellre över den och nämn det i note.
-- shelfLifeDays = ungefärlig hållbarhet för färskvaran, räknat från idag.`;
+- shelfLifeDays = ungefärlig hållbarhet för färskvaran, räknat från idag.
+- ${svarsSprak()}`;
 
   const text = await aiRequest({
     system,
@@ -267,7 +281,7 @@ const RECIPE_SCHEMA = {
       items: {
         type: 'object',
         properties: {
-          title: { type: 'string', description: 'Rättens namn på svenska' },
+          title: { type: 'string', description: 'Rättens namn' },
           why: { type: 'string', description: 'En mening om varför just nu — nämn varan som brådskar' },
           uses: { type: 'array', items: { type: 'string' }, description: 'Varor ur lagret som används' },
           missing: { type: 'array', items: { type: 'string' }, description: 'Vad som behöver köpas, tomt om inget' },
@@ -312,7 +326,7 @@ export const mealLabel = (id) => MEALS.find(m => m.id === id)?.label || MEALS[0]
 const MAX_REQUEST = 400;
 
 export async function suggestRecipes(items, { meal = 'any', request = '', ratings = null } = {}) {
-  if (!items.length) throw new AiError('Lagret är tomt — skanna in något först.');
+  if (!items.length) throw new AiError(t('Lagret är tomt — skanna in något först.'));
   const wish = String(request || '').trim().slice(0, MAX_REQUEST);
   const { gillade = [], ogillade = [] } = ratingsForPrompt(ratings || {});
 
@@ -330,7 +344,8 @@ Regler:
 - Betygen är hushållets smak. Föreslå aldrig en rätt de gett lågt betyg, och
   undvik dess bärande grepp — samma kryddning, samma tillagningssätt, samma
   huvudråvara i samma roll. Luta åt det de gillat, men upprepa inte en högt
-  betygsatt rätt rakt av: de vill ha något nytt som de kommer att gilla.`;
+  betygsatt rätt rakt av: de vill ha något nytt som de kommer att gilla.
+- ${svarsSprak()}`;
 
   // Önskemålet ramas in med flit. Det är text användaren skrivit, inte
   // instruktioner till modellen, och ska inte kunna knuffa undan reglerna ovan.

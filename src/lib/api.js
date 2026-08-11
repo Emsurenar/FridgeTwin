@@ -1,5 +1,6 @@
 // Klientens API-lager. Hushållsnyckeln följer med varje anrop och bor i
 // localStorage — det är den som avgör vilket kylskåp man tittar in i.
+import { t } from './i18n.js';
 
 const KEY_STORAGE = 'fridge_twin_key';
 
@@ -38,7 +39,7 @@ export function getKey() {
 export function setKey(key) {
   const raw = String(key || '').trim();
   const clean = (/[#&]key=([a-zA-Z0-9-]{12,64})/.exec(raw) || [])[1] || raw;
-  if (!/^[a-zA-Z0-9-]{12,64}$/.test(clean)) throw new Error('Ogiltig nyckel');
+  if (!/^[a-zA-Z0-9-]{12,64}$/.test(clean)) throw new Error(t('Ogiltig nyckel'));
   minnesnyckel = clean;
   try { localStorage.setItem(KEY_STORAGE, clean); } catch { /* sessionen ut */ }
   return clean;
@@ -74,7 +75,7 @@ async function request(path, { method = 'GET', body } = {}) {
       ...(body ? { body: JSON.stringify(body) } : {}),
     });
   } catch {
-    throw new ApiError('Ingen kontakt med servern', 0);
+    throw new ApiError(t('Ingen kontakt med servern'), 0);
   }
   if (res.status === 204) return null;
   const json = await res.json().catch(() => ({}));
@@ -82,9 +83,11 @@ async function request(path, { method = 'GET', body } = {}) {
     // 502–504 kommer från en server som startar upp eller ligger nere. Den
     // svarar sällan med JSON, och "Fel 503" säger inget om vad man ska göra.
     const fallback = res.status >= 502 && res.status <= 504
-      ? 'Servern svarar inte just nu'
-      : `Fel ${res.status}`;
-    throw new ApiError(json.error || fallback, res.status);
+      ? t('Servern svarar inte just nu')
+      : t('Fel {n}', { n: res.status });
+    // Serverns felsträngar är svenska. t() översätter de kända och släpper
+    // igenom resten orörda — bättre svenska än ingenting alls.
+    throw new ApiError(json.error ? t(json.error) : fallback, res.status);
   }
   return json;
 }

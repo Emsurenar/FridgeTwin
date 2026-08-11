@@ -7,6 +7,7 @@
 import { prepareZXingModule, readBarcodes } from 'zxing-wasm/reader';
 import wasmUrl from 'zxing-wasm/reader/zxing_reader.wasm?url';
 import { SCAN_FORMATS } from './scan-formats';
+import { t } from './i18n.js';
 
 const SCAN_INTERVAL_MS = 140;   // ~7 försök/sekund räcker gott för en handhållen kamera
 const MAX_WIDTH = 720;          // nedskalning: större bild ger inte fler träffar, bara långsammare
@@ -25,7 +26,7 @@ export function ensureReader() {
 
 export async function startCamera(video) {
   if (!navigator.mediaDevices?.getUserMedia) {
-    throw new Error('Kameran kräver en säker anslutning (https eller localhost).');
+    throw new Error(t('Kameran kräver en säker anslutning (https eller localhost).'));
   }
   const stream = await navigator.mediaDevices.getUserMedia({
     video: {

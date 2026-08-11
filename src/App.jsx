@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from '
 import { Refrigerator, ChefHat, Settings as SettingsIcon, ScanLine, Loader2, AlertTriangle } from 'lucide-react';
 import * as api from './lib/api';
 import { subscribeAi, aiReady, suggestRecipes } from './lib/ai';
+import { t, subscribeLang, getLang } from './lib/i18n';
 import { loadLog, addEntry, removeEntry, clearLog, newEntryId } from './lib/recipeLog';
 import { loadMirror, saveMirror, missingFromServer } from './lib/mirror';
 import { loadRatings, setRating } from './lib/ratings';
@@ -118,7 +119,7 @@ export default function App() {
           fresh = res.items;
           if (res.restored) {
             showToast(res.restored === 1
-              ? '1 vara lades tillbaka' : `${res.restored} varor lades tillbaka`);
+              ? t('1 vara lades tillbaka') : t('{n} varor lades tillbaka', { n: res.restored }));
           }
         }
       }
@@ -185,7 +186,7 @@ export default function App() {
     try {
       const item = await api.addItem(payload);
       upsert(item);
-      showToast(`${item.name} inlagd`);
+      showToast(t('{name} inlagd', { name: item.name }));
       return item;
     } catch (e) {
       showToast(e.message, 'danger');
@@ -208,14 +209,16 @@ export default function App() {
       }
     }
     if (!added.length) {
-      showToast(sista?.message || 'Inget kunde läggas in', 'danger');
+      showToast(sista?.message || t('Inget kunde läggas in'), 'danger');
       return false;
     }
     if (added.length < list.length) {
-      showToast(`${added.length} av ${list.length} inlagda — resten misslyckades`, 'danger');
+      showToast(t('{a} av {b} inlagda — resten misslyckades', { a: added.length, b: list.length }), 'danger');
       return true;
     }
-    showToast(added.length === 1 ? `${added[0].name} inlagd` : `${added.length} varor inlagda`);
+    showToast(added.length === 1
+      ? t('{name} inlagd', { name: added[0].name })
+      : t('{n} varor inlagda', { n: added.length }));
     return true;
   };
 
@@ -239,11 +242,11 @@ export default function App() {
   const dropIfGone = (id, e) => {
     if (e.status !== 404) return false;
     if (persistent === false) {
-      showToast('Servern hittade inte varan just nu. Försök igen.', 'danger');
+      showToast(t('Servern hittade inte varan just nu. Försök igen.'), 'danger');
       return true;
     }
     setItems(prev => prev.filter(i => i.id !== id));
-    showToast('Varan är redan borttagen', 'danger');
+    showToast(t('Varan är redan borttagen'), 'danger');
     return true;
   };
 
@@ -260,7 +263,7 @@ export default function App() {
   const handlePatch = async (id, patch) => {
     try {
       upsert(await api.patchItem(id, patch));
-      showToast('Sparat');
+      showToast(t('Sparat'));
       return true;
     } catch (e) {
       if (dropIfGone(id, e)) return persistent !== false;
@@ -274,8 +277,8 @@ export default function App() {
     setItems(prev => prev.filter(i => i.id !== item.id)); // optimistiskt: raden ska försvinna direkt
     try {
       await api.removeItem(item.id, reason);
-      showToast(`${item.name} ${reason === 'waste' ? 'slängd' : 'slut'}`, reason === 'waste' ? 'danger' : 'success', {
-        label: 'Ångra',
+      showToast(t(reason === 'waste' ? '{name} slängd' : '{name} slut', { name: item.name }), reason === 'waste' ? 'danger' : 'success', {
+        label: t('Ångra'),
         onClick: async () => {
           setToast(null);
           try {
@@ -297,9 +300,9 @@ export default function App() {
       if (e.status === 404) {
         if (persistent === false) {
           upsert(item);
-          return showToast('Servern hittade inte varan just nu. Försök igen.', 'danger');
+          return showToast(t('Servern hittade inte varan just nu. Försök igen.'), 'danger');
         }
-        return showToast('Varan var redan borttagen', 'danger');
+        return showToast(t('Varan var redan borttagen'), 'danger');
       }
       upsert(item); // något annat gick fel — lägg tillbaka raden
       showToast(e.message, 'danger');
@@ -321,11 +324,11 @@ export default function App() {
       const { item: updated, removed } = await api.consumeOne(item.id);
       if (!removed) {
         upsert(updated);
-        return showToast(`${updated.name}: ${updated.count} kvar`);
+        return showToast(t('{name}: {n} kvar', { name: updated.name, n: updated.count }));
       }
       setItems(prev => prev.filter(i => i.id !== item.id));
-      showToast(`${updated.name} slut`, 'success', {
-        label: 'Ångra',
+      showToast(t('{name} slut', { name: updated.name }), 'success', {
+        label: t('Ångra'),
         onClick: async () => {
           setToast(null);
           try {
@@ -353,7 +356,7 @@ export default function App() {
     setRecipeBusy(true);
     try {
       const recipes = await suggestRecipes(items, { meal, request, ratings });
-      if (!recipes.length) return showToast('Inga förslag den här gången', 'danger');
+      if (!recipes.length) return showToast(t('Inga förslag den här gången'), 'danger');
       setRecipeLog(prev => addEntry(prev, {
         id: newEntryId(),
         at: new Date().toISOString(),
@@ -367,8 +370,8 @@ export default function App() {
         // framme, för den åtgärden går inte att nå på något annat sätt.
         setRecipesUnseen(true);
         if (!toastRef.current?.action) {
-          showToast('Receptförslagen är klara', 'success', {
-            label: 'Visa',
+          showToast(t('Receptförslagen är klara'), 'success', {
+            label: t('Visa'),
             onClick: () => { setToast(null); setTab('recipes'); },
           });
         }
@@ -396,6 +399,9 @@ export default function App() {
   // knapparna den styr sitter i skannern och receptvyn. Utan den här kopplingen
   // syntes en nyinlagd nyckel först när något annat råkade rendera om.
   const aiOk = useSyncExternalStore(subscribeAi, aiReady);
+  // Språket byts i Inställningar men ändrar varenda text. App är trädets rot,
+  // så en omrendering här ritar om alltihop på det nya språket.
+  useSyncExternalStore(subscribeLang, getLang);
 
   /*
     Utan TURSO_URL ligger lagret i serverns /tmp. På Vercel är den katalogen
@@ -410,9 +416,9 @@ export default function App() {
   const storageAtRisk = persistent === false && !isLocalhost;
 
   const navItems = [
-    { id: 'inventory', icon: Refrigerator, label: 'Kylskåpet' },
-    { id: 'recipes', icon: ChefHat, label: 'Recept' },
-    { id: 'settings', icon: SettingsIcon, label: 'Inställningar' },
+    { id: 'inventory', icon: Refrigerator, label: t('Kylskåpet') },
+    { id: 'recipes', icon: ChefHat, label: t('Recept') },
+    { id: 'settings', icon: SettingsIcon, label: t('Inställningar') },
   ];
 
   return (
@@ -421,7 +427,7 @@ export default function App() {
         {storageAtRisk && (
           <button className="banner banner-danger banner-btn" onClick={() => setTab('settings')}>
             <AlertTriangle size={17} />
-            <span>Lagret sparas inte — varor kan försvinna. Läs mer</span>
+            <span>{t('Lagret sparas inte — varor kan försvinna. Läs mer')}</span>
           </button>
         )}
 
@@ -452,7 +458,7 @@ export default function App() {
             <Refrigerator size={19} />
             <span>{navItems[0].label}</span>
           </button>
-          <button className="scan-nav-btn" onClick={() => setScannerOpen(true)} aria-label="Skanna streckkod">
+          <button className="scan-nav-btn" onClick={() => setScannerOpen(true)} aria-label={t('Skanna streckkod')}>
             <ScanLine size={22} strokeWidth={2.2} />
           </button>
           {navItems.slice(1).map(item => (
@@ -469,7 +475,7 @@ export default function App() {
               <span>
                 {item.label}
                 {item.id === 'recipes' && recipesUnseen && !recipeBusy && (
-                  <i className="nav-dot" aria-label="nya receptförslag" />
+                  <i className="nav-dot" aria-label={t('nya receptförslag')} />
                 )}
               </span>
             </button>

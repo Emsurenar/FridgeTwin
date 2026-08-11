@@ -3,6 +3,7 @@ import { Sparkles, Check } from 'lucide-react';
 import { identifyItems } from '../lib/ai';
 import { addDays, toIsoDate } from '../lib/expiry';
 import { fmtExpiry, LOCATIONS, locationLabel } from '../lib/fmt';
+import { t } from '../lib/i18n';
 import PhotoButton from './PhotoButton';
 import Sheet from './Sheet';
 
@@ -33,7 +34,7 @@ export default function PhotoIdentifySheet({ onClose, onAddMany, onToast }) {
         // får aktivt välja in dem.
         checked: (i.confidence ?? 1) >= 0.6,
       })));
-      if (!result.items.length) onToast('Hittade inga varor på bilden', 'danger');
+      if (!result.items.length) onToast(t('Hittade inga varor på bilden'), 'danger');
     } catch (e) {
       onToast(e.message, 'danger');
     } finally {
@@ -66,23 +67,23 @@ export default function PhotoIdentifySheet({ onClose, onAddMany, onToast }) {
   };
 
   return (
-    <Sheet title={'Identifiera med foto'} onClose={onClose}>
-        <h2 style={{ marginBottom: 4 }}>Identifiera med foto</h2>
+    <Sheet title={t('Identifiera med foto')} onClose={onClose}>
+        <h2 style={{ marginBottom: 4 }}>{t('Identifiera med foto')}</h2>
         <p style={{ marginBottom: 20 }}>
-          Fota lösvikt eller en hel hylla — Claude föreslår vad det är, du bockar av.
+          {t('Fota lösvikt eller en hel hylla — Claude föreslår vad det är, du bockar av.')}
         </p>
 
-        <PhotoButton label={rows ? 'Ta ett nytt foto' : 'Ta foto'} busyLabel="Tittar på bilden…"
+        <PhotoButton label={rows ? t('Ta ett nytt foto') : t('Ta foto')} busyLabel={t('Tittar på bilden…')}
           className={rows ? 'btn-ghost' : ''} onPhoto={handlePhoto} disabled={busy}
           onError={m => onToast(m, 'danger')} />
 
-        {busy && !rows && <p style={{ marginTop: 16, textAlign: 'center' }}>Claude tittar på bilden…</p>}
+        {busy && !rows && <p style={{ marginTop: 16, textAlign: 'center' }}>{t('Claude tittar på bilden…')}</p>}
 
         {note && <p style={{ marginTop: 16 }}>{note}</p>}
 
         {rows?.length > 0 && (
           <>
-            <h3 className="eyebrow">{rows.length} förslag</h3>
+            <h3 className="eyebrow">{t('{n} förslag', { n: rows.length })}</h3>
             <div className="stack">
               {rows.map((r, i) => (
                 // <button> och inte <div onClick>: raden är ett val man ska
@@ -107,7 +108,7 @@ export default function PhotoIdentifySheet({ onClose, onAddMany, onToast }) {
 
             <button className="sheet-cta" onClick={add} disabled={!chosen.length || busy}>
               <Sparkles size={16} />
-              {chosen.length ? `Lägg till ${chosen.length} varor` : 'Inget valt'}
+              {chosen.length ? t('Lägg till {n} varor', { n: chosen.length }) : t('Inget valt')}
             </button>
           </>
         )}

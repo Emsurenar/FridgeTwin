@@ -1,6 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { alreadyHome, summarize, totalCount } from '../src/lib/owned.js';
+import { setLang } from '../src/lib/i18n.js';
+
+// Uttryckligen svenska: summeringen jämförs mot de svenska källsträngarna.
+setLang('sv');
 
 // Skannern visar "redan hemma" och erbjuder att räkna ner. Väljer den fel
 // förpackning tömmer appen den med längst hållbarhet och lämnar kvar den som
@@ -67,4 +71,13 @@ test('summeringen slår ihop antal per utrymme', () => {
 test('ett enda exemplar summeras utan att bli konstigt', () => {
   assert.equal(summarize([item({ location: 'pantry', count: 1 })]), '1 st i skafferiet');
   assert.equal(totalCount([]), 0);
+});
+
+test('summeringen följer språkvalet', () => {
+  setLang('en');
+  try {
+    assert.equal(summarize([item({ location: 'fridge', count: 2 })]), '2 in the fridge');
+  } finally {
+    setLang('sv');
+  }
 });

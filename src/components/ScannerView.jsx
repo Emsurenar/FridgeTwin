@@ -6,6 +6,7 @@ import { addDays, toIsoDate, ISO_DATE_RE } from '../lib/expiry';
 import { readBestBefore } from '../lib/ai';
 import { LOCATIONS, locationLabel, fmtExpiry } from '../lib/fmt';
 import { alreadyHome, summarize, totalCount } from '../lib/owned';
+import { t } from '../lib/i18n';
 import { Stepper } from './Fields';
 import PhotoButton from './PhotoButton';
 
@@ -94,11 +95,11 @@ export default function ScannerView({ defaultLocation = 'fridge', items = [], ai
       const { date, raw } = await readBestBefore(dataUrl);
       if (!levande.current) return;
       if (!date || !ISO_DATE_RE.test(date)) {
-        return onToast(raw ? `Kunde inte tolka "${raw}"` : 'Hittade inget datum på bilden', 'danger');
+        return onToast(raw ? t('Kunde inte tolka "{raw}"', { raw }) : t('Hittade inget datum på bilden'), 'danger');
       }
       setPhotoDate(date);
       setDays(null); // ett läst datum slår ett gissat
-      onToast(`Läste ${fmtExpiry(date)}`);
+      onToast(t('Läste {date}', { date: fmtExpiry(date) }));
     } catch (e) {
       if (levande.current) onToast(e.message, 'danger');
     }
@@ -195,8 +196,8 @@ export default function ScannerView({ defaultLocation = 'fridge', items = [], ai
         if (cancelled) return;
         setStarting(false);
         setError(e.name === 'NotAllowedError'
-          ? 'Kameran nekades. Tillåt kameraåtkomst för sajten och försök igen.'
-          : e.message || 'Kunde inte starta kameran.');
+          ? t('Kameran nekades. Tillåt kameraåtkomst för sajten och försök igen.')
+          : e.message || t('Kunde inte starta kameran.'));
       }
     })();
 
@@ -296,9 +297,9 @@ export default function ScannerView({ defaultLocation = 'fridge', items = [], ai
       <video ref={videoRef} muted playsInline />
       <div className="scanner-ui">
         <div className="scanner-topbar">
-          <button onClick={onClose} aria-label="Stäng"><X size={18} /> Klar</button>
+          <button onClick={onClose} aria-label={t('Stäng')}><X size={18} /> {t('Klar')}</button>
           <button onClick={() => setAuto(a => !a)}>
-            {auto ? <Zap size={16} /> : <ZapOff size={16} />} {auto ? 'Autoläge på' : 'Autoläge av'}
+            {auto ? <Zap size={16} /> : <ZapOff size={16} />} {t(auto ? 'Autoläge på' : 'Autoläge av')}
           </button>
         </div>
 
@@ -306,7 +307,7 @@ export default function ScannerView({ defaultLocation = 'fridge', items = [], ai
           <div>
             <div className={`scanner-window ${flash ? 'hit' : ''}`} />
             <div className="scanner-hint">
-              {error ? '' : starting ? 'Startar kameran…' : 'Rikta mot streckkoden'}
+              {error ? '' : starting ? t('Startar kameran…') : t('Rikta mot streckkoden')}
             </div>
           </div>
         </div>
@@ -315,7 +316,7 @@ export default function ScannerView({ defaultLocation = 'fridge', items = [], ai
           {error && (
             <div className="scan-toast" style={{ display: 'block' }}>
               <p style={{ marginBottom: 12 }}>{error}</p>
-              <button className="btn-ghost" onClick={() => setManual(true)}>Lägg till för hand i stället</button>
+              <button className="btn-ghost" onClick={() => setManual(true)}>{t('Lägg till för hand i stället')}</button>
             </div>
           )}
 
@@ -332,7 +333,7 @@ export default function ScannerView({ defaultLocation = 'fridge', items = [], ai
                 <button key={l.id} className={location === l.id ? 'active' : ''}
                   aria-pressed={location === l.id}
                   onClick={() => { setLocation(l.id); onLocationChange?.(l.id); }}>
-                  {l.label}
+                  {t(l.label)}
                 </button>
               ))}
             </div>
@@ -342,7 +343,7 @@ export default function ScannerView({ defaultLocation = 'fridge', items = [], ai
             <div className="scan-toast">
               <Loader2 size={18} className="spin" />
               <span className="truncate" style={{ flex: 1 }}>{pending.barcode}</span>
-              <button className="btn-ghost btn-pill" onClick={hoppaOver}>Avbryt</button>
+              <button className="btn-ghost btn-pill" onClick={hoppaOver}>{t('Avbryt')}</button>
             </div>
           )}
 
@@ -368,32 +369,32 @@ export default function ScannerView({ defaultLocation = 'fridge', items = [], ai
               <Owned items={items} barcode={pending.barcode} onConsumeOne={onConsumeOne} />
 
               <div className="scan-row">
-                <span className="scan-label">Antal</span>
+                <span className="scan-label">{t('Antal')}</span>
                 <Stepper value={count} onChange={setCount} />
               </div>
 
-              <span className="scan-label">Bäst före</span>
+              <span className="scan-label">{t('Bäst före')}</span>
               <div className="chips">
                 {SCAN_DAYS.map(d => (
                   <button key={d.days} className={`chip ${!photoDate && days === d.days ? 'chip-on' : ''}`}
                     onClick={() => { setPhotoDate(null); setDays(days === d.days ? null : d.days); }}>
-                    {d.label}
+                    {t(d.label)}
                   </button>
                 ))}
                 {/* Fota datumet i stället för att gissa. Systemkameran via
                     <input capture> ger skärpa och blixt, vilket en avläsning av
                     liten tryckt text behöver mer än skannerströmmen gör. */}
                 {aiOk && (
-                  <PhotoButton className="chip chip-foto" label="Fota datumet"
-                    busyLabel="Läser…" onPhoto={handleDatePhoto}
+                  <PhotoButton className="chip chip-foto" label={t('Fota datumet')}
+                    busyLabel={t('Läser…')} onPhoto={handleDatePhoto}
                     onError={m => onToast(m, 'danger')} />
                 )}
               </div>
 
               {photoDate && (
                 <p className="scan-last">
-                  Läst från förpackningen: <strong>{fmtExpiry(photoDate)}</strong>
-                  <button className="link-btn" onClick={() => setPhotoDate(null)}>Ta bort</button>
+                  {t('Läst från förpackningen:')} <strong>{fmtExpiry(photoDate)}</strong>
+                  <button className="link-btn" onClick={() => setPhotoDate(null)}>{t('Ta bort')}</button>
                 </p>
               )}
 
@@ -402,10 +403,10 @@ export default function ScannerView({ defaultLocation = 'fridge', items = [], ai
                   stänga skannern och öppna den igen. */}
               <div className="grid-2">
                 <button className="btn-ghost" onClick={hoppaOver}>
-                  Hoppa över
+                  {t('Hoppa över')}
                 </button>
                 <button onClick={addFound}>
-                  Lägg till{count > 1 ? ` ${count} st` : ''}
+                  {count > 1 ? t('Lägg till {n} st', { n: count }) : t('Lägg till')}
                 </button>
               </div>
             </div>
@@ -414,13 +415,13 @@ export default function ScannerView({ defaultLocation = 'fridge', items = [], ai
           {pending?.status === 'unknown' && (
             <div className="scan-toast" style={{ display: 'block' }}>
               <p style={{ marginBottom: 10 }}>
-                Okänd streckkod <span className="mono">{pending.barcode}</span>. Vad är det för vara?
+                {t('Okänd streckkod')} <span className="mono">{pending.barcode}</span>. {t('Vad är det för vara?')}
               </p>
               <input autoFocus value={pending.name}                 onChange={e => setPending(p => ({ ...p, name: e.target.value }))}
                 onKeyDown={e => e.key === 'Enter' && saveUnknown()} />
               <div className="grid-2">
-                <button className="btn-ghost" onClick={hoppaOver}>Hoppa över</button>
-                <button onClick={saveUnknown} disabled={!pending.name.trim()}>Spara</button>
+                <button className="btn-ghost" onClick={hoppaOver}>{t('Hoppa över')}</button>
+                <button onClick={saveUnknown} disabled={!pending.name.trim()}>{t('Spara')}</button>
               </div>
             </div>
           )}
@@ -429,7 +430,7 @@ export default function ScannerView({ defaultLocation = 'fridge', items = [], ai
 
           {!pending && !manual && !error && (
             <button className="btn-ghost" onClick={() => setManual(true)}>
-              <Keyboard size={16} /> Vara utan streckkod
+              <Keyboard size={16} /> {t('Vara utan streckkod')}
             </button>
           )}
         </div>
@@ -450,11 +451,11 @@ function Owned({ items, barcode, onConsumeOne }) {
   return (
     <div className="owned">
       <div className="owned-text">
-        <h3>Redan hemma</h3>
+        <h3>{t('Redan hemma')}</h3>
         <div className="owned-where">{summarize(owned)}</div>
       </div>
       <button className="btn-ghost btn-pill" onClick={() => onConsumeOne(next)}>
-        {total > 1 ? `Ta en ur ${locationLabel(next.location).toLowerCase()}` : 'Markera som slut'}
+        {total > 1 ? t('Ta en ur {place}', { place: locationLabel(next.location).toLowerCase() }) : t('Markera som slut')}
       </button>
     </div>
   );
@@ -464,12 +465,12 @@ function ManualRow({ onCancel, onSubmit }) {
   const [name, setName] = useState('');
   return (
     <div className="scan-toast" style={{ display: 'block' }}>
-      <input autoFocus value={name} placeholder="Varans namn"
+      <input autoFocus value={name} placeholder={t('Varans namn')}
         onChange={e => setName(e.target.value)}
         onKeyDown={e => e.key === 'Enter' && onSubmit(name)} />
       <div className="grid-2">
-        <button className="btn-ghost" onClick={onCancel}>Avbryt</button>
-        <button onClick={() => onSubmit(name)} disabled={!name.trim()}>Lägg till</button>
+        <button className="btn-ghost" onClick={onCancel}>{t('Avbryt')}</button>
+        <button onClick={() => onSubmit(name)} disabled={!name.trim()}>{t('Lägg till')}</button>
       </div>
     </div>
   );

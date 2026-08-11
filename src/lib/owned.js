@@ -10,6 +10,7 @@
 // och de här funktionerna ska gå att testa utan bundler.
 import { byExpiry } from './expiry.js';
 import { locationLabel } from './fmt.js';
+import { t } from './i18n.js';
 
 /*
   Varorna man redan har av en streckkod, med det som går ut först överst.
@@ -34,7 +35,7 @@ export function summarize(list) {
     perLocation.set(item.location, (perLocation.get(item.location) || 0) + item.count);
   }
   return [...perLocation]
-    .map(([location, n]) => `${n} st i ${locationLabel(location).toLowerCase()}`)
+    .map(([location, n]) => t('{n} st i {place}', { n, place: locationLabel(location).toLowerCase() }))
     .join(' · ');
 }
 

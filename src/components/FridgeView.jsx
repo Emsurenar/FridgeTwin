@@ -4,6 +4,7 @@ import { byExpiry, expiryState } from '../lib/expiry';
 import { queueSections } from '../lib/rail';
 import { lagesText } from '../lib/lage';
 import { fmtBandExpiry, fmtToday, locationLabel } from '../lib/fmt';
+import { t } from '../lib/i18n';
 
 /*
   Kylskåpet.
@@ -36,7 +37,7 @@ function Bild({ item, size = 46 }) {
 // den upprepas inte här.
 function under(item) {
   const delar = [];
-  if (item.count > 1) delar.push(`${item.count} st`);
+  if (item.count > 1) delar.push(t('{n} st', { n: item.count }));
   delar.push(locationLabel(item.location));
   if (item.brand) delar.push(item.brand);
   return delar.join(' · ');
@@ -82,7 +83,7 @@ function Forrad({ items, onSelect }) {
 
   return (
     <section className="grupp">
-      <h2 className="grupp-titel">Håller sig<span className="grupp-antal">{items.length}</span></h2>
+      <h2 className="grupp-titel">{t('Håller sig')}<span className="grupp-antal">{items.length}</span></h2>
       {perPlats.map(([location, list]) => (
         <div key={location} className="forrad">
           <div className="forrad-plats">{locationLabel(location)}</div>
@@ -146,12 +147,12 @@ export default function FridgeView({ items, loading, error, onRetry, onSelect, o
   // frysens läge, inte hela kylskåpets.
   const lage = useMemo(() => lagesText(synliga), [synliga]);
 
-  if (loading && !items.length) return <p className="tomt">Öppnar kylskåpet…</p>;
+  if (loading && !items.length) return <p className="tomt">{t('Öppnar kylskåpet…')}</p>;
   if (error && !items.length) {
     return (
       <div className="tomt">
-        <p style={{ marginBottom: 16 }}>Kunde inte hämta lagret.<br />{error}</p>
-        <button className="btn-ghost btn-pill" onClick={onRetry}>Försök igen</button>
+        <p style={{ marginBottom: 16 }}>{t('Kunde inte hämta lagret.')}<br />{error}</p>
+        <button className="btn-ghost btn-pill" onClick={onRetry}>{t('Försök igen')}</button>
       </div>
     );
   }
@@ -160,12 +161,12 @@ export default function FridgeView({ items, loading, error, onRetry, onSelect, o
     <>
       <header className="topp">
         <div className="topp-rad">
-          <button className="topp-rund" aria-label={searching ? 'Stäng sök' : 'Sök vara'}
+          <button className="topp-rund" aria-label={searching ? t('Stäng sök') : t('Sök vara')}
             onClick={() => { setSearching(s => !s); setQuery(''); }}>
             {searching ? <X size={19} /> : <Search size={19} />}
           </button>
           <button className="topp-rund topp-rund-primar" onClick={onAddClick}
-            aria-label="Lägg till vara">
+            aria-label={t('Lägg till vara')}>
             <Plus size={20} strokeWidth={2.4} />
           </button>
         </div>
@@ -180,17 +181,17 @@ export default function FridgeView({ items, loading, error, onRetry, onSelect, o
 
       {searching && (
         <input className="sok-falt" autoFocus value={query}
-          aria-label="Sök i hela kylskåpet"
-          placeholder="Sök i hela kylskåpet"
+          aria-label={t('Sök i hela kylskåpet')}
+          placeholder={t('Sök i hela kylskåpet')}
           onChange={e => setQuery(e.target.value)} />
       )}
 
       {!searching && items.length > 0 && (
-        <div className="segmented platsfilter" role="group" aria-label="Visa utrymme">
+        <div className="segmented platsfilter" role="group" aria-label={t('Visa utrymme')}>
           {FILTER.map(f => (
             <button key={f.id} className={plats === f.id ? 'active' : ''}
               aria-pressed={plats === f.id} onClick={() => setPlats(f.id)}>
-              {f.label}
+              {t(f.label)}
             </button>
           ))}
         </div>
@@ -198,26 +199,26 @@ export default function FridgeView({ items, loading, error, onRetry, onSelect, o
 
       {hits ? (
         hits.length
-          ? <Grupp titel={hits.length === 1 ? 'Träff' : 'Träffar'} antal={hits.length}>
+          ? <Grupp titel={t(hits.length === 1 ? 'Träff' : 'Träffar')} antal={hits.length}>
               {hits.map(item => <Rad key={item.id} item={item} onSelect={onSelect} />)}
             </Grupp>
-          : <p className="tomt">Ingen vara heter så.</p>
+          : <p className="tomt">{t('Ingen vara heter så.')}</p>
       ) : !items.length ? (
         <div className="tomt">
-          <p>Skanna en streckkod eller tryck på plus.</p>
+          <p>{t('Skanna en streckkod eller tryck på plus.')}</p>
         </div>
       ) : !synliga.length ? (
-        <p className="tomt">Inget här ännu.</p>
+        <p className="tomt">{t('Inget här ännu.')}</p>
       ) : (
         <>
           {attGora.length > 0 && (
-            <Grupp titel="Ät nu" antal={attGora.length}>
+            <Grupp titel={t('Ät nu')} antal={attGora.length}>
               {attGora.map(item => <Rad key={item.id} item={item} onSelect={onSelect} />)}
             </Grupp>
           )}
 
           {veckan.length > 0 && (
-            <Grupp titel="Den här veckan" antal={veckan.length}>
+            <Grupp titel={t('Den här veckan')} antal={veckan.length}>
               {veckan.map(item => <Rad key={item.id} item={item} onSelect={onSelect} />)}
             </Grupp>
           )}
@@ -227,12 +228,12 @@ export default function FridgeView({ items, loading, error, onRetry, onSelect, o
               gruppering och receptprioritering hänger alla på att det blir
               ifyllt, så frånvaron är ett hål man lagar med ett tryck. */}
           {utanDatum.length > 0 && (
-            <Grupp titel="Utan datum" antal={utanDatum.length}>
+            <Grupp titel={t('Utan datum')} antal={utanDatum.length}>
               {utanDatum.map(item => (
                 <Rad key={item.id} item={item} onSelect={onSelect}
                   atgard={
                     <span className="satt-datum" role="presentation">
-                      <CalendarPlus size={14} /> Sätt datum
+                      <CalendarPlus size={14} /> {t('Sätt datum')}
                     </span>
                   } />
               ))}
@@ -242,8 +243,8 @@ export default function FridgeView({ items, loading, error, onRetry, onSelect, o
           {resten.length > 0 && <Forrad items={resten} onSelect={onSelect} />}
 
           <footer className="summa">
-            {fmtToday()} · {synliga.length} {synliga.length === 1 ? 'vara' : 'varor'}
-            {plats !== 'all' && ` av ${items.length}`}
+            {fmtToday()} · {t(synliga.length === 1 ? '{n} vara' : '{n} varor', { n: synliga.length })}
+            {plats !== 'all' && ` ${t('av {n}', { n: items.length })}`}
           </footer>
         </>
       )}

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Trash2, Check, Package } from 'lucide-react';
 import { fmtBandExpiry } from '../lib/fmt';
 import { expiryState } from '../lib/expiry';
+import { t } from '../lib/i18n';
 import { Stepper, LocationPicker, ExpiryPicker } from './Fields';
 import Sheet from './Sheet';
 
@@ -54,30 +55,30 @@ export default function ItemSheet({ item, aiOk, onClose, onPatch, onRemove, onTo
           </div>
         </div>
 
-        <label>Antal</label>
+        <label>{t('Antal')}</label>
         <div style={{ marginBottom: 16 }}>
           <Stepper value={count} onChange={setCount} />
         </div>
 
-        <label>Var ligger den?</label>
+        <label>{t('Var ligger den?')}</label>
         <LocationPicker value={location} onChange={setLocation} />
 
-        <label>Bäst före</label>
+        <label>{t('Bäst före')}</label>
         <ExpiryPicker value={expiresOn} onChange={setExpiresOn} aiOk={aiOk} onToast={onToast} />
 
         {/* Att varan är slut eller slängd är inte en ändring man sparar — det
             är ett beslut, och det tas direkt. */}
         <div className="grid-2" style={{ margin: '20px 0 0' }}>
           <button className="btn-ghost" onClick={() => onRemove(item, 'waste')}>
-            <Trash2 size={16} /> Slängd
+            <Trash2 size={16} /> {t('Slängd')}
           </button>
           <button className="btn-ghost" onClick={() => onRemove(item, 'consumed')}>
-            <Check size={16} /> Slut
+            <Check size={16} /> {t('Slut')}
           </button>
         </div>
 
         <button className="sheet-cta" onClick={save} disabled={!dirty || saving}>
-          {saving ? 'Sparar…' : dirty ? 'Spara' : 'Inget ändrat'}
+          {saving ? t('Sparar…') : dirty ? t('Spara') : t('Inget ändrat')}
         </button>
     </Sheet>
   );
