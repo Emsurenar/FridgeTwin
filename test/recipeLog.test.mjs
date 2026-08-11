@@ -31,7 +31,7 @@ const post = (id) => ({ id, at: '2026-08-04T10:00:00.000Z', meal: 'any', request
 // Modulen läser localStorage först vid anrop, men importen ska ändå ske efter
 // att stubben finns — annars kastar en framtida toppnivåläsning i tysthet.
 stubLocalStorage();
-const { loadLog, addEntry, removeEntry, clearLog } = await import('../src/lib/recipeLog.js');
+const { loadLog, addEntry, addChat, removeEntry, clearLog } = await import('../src/lib/recipeLog.js');
 
 test('en post sparas och läses tillbaka', () => {
   stubLocalStorage();
@@ -108,6 +108,43 @@ test('trasig JSON ger tom logg i stället för att kasta', () => {
   const data = stubLocalStorage();
   data.set('fridge_twin_recipe_log', '{inte json');
   assert.deepEqual(loadLog(), []);
+});
+
+/*
+  Frågorna sparas i loggen av samma skäl som recepten själva: svaret kostade
+  tokens, och ett flikbyte eller en omladdning får inte kasta bort det.
+*/
+test('en fråga hamnar på rätt recept och lämnar grannarna i fred', () => {
+  stubLocalStorage();
+  const entry = { ...post('a'), recipes: [{ title: 'Soppa' }, { title: 'Paj' }] };
+  let log = addEntry([], entry);
+  log = addChat(log, 'a', 1, { q: 'Kan jag ta frusen spenat?', a: 'Ja.' });
+  assert.equal(log[0].recipes[0].chat, undefined, 'grannreceptet ska inte röras');
+  assert.deepEqual(log[0].recipes[1].chat, [{ q: 'Kan jag ta frusen spenat?', a: 'Ja.' }]);
+});
+
+test('en andra fråga läggs efter den första', () => {
+  stubLocalStorage();
+  let log = addEntry([], post('a'));
+  log = addChat(log, 'a', 0, { q: 'ett', a: 'svar ett' });
+  log = addChat(log, 'a', 0, { q: 'två', a: 'svar två' });
+  assert.deepEqual(log[0].recipes[0].chat.map(c => c.q), ['ett', 'två']);
+});
+
+test('svaret når lagringen, inte bara minnet', () => {
+  const data = stubLocalStorage();
+  let log = addEntry([], post('a'));
+  addChat(log, 'a', 0, { q: 'fråga', a: 'svar' });
+  const sparad = JSON.parse(data.get('fridge_twin_recipe_log'));
+  assert.deepEqual(sparad[0].recipes[0].chat, [{ q: 'fråga', a: 'svar' }]);
+});
+
+// Posten kan ha glömts bort medan frågan var i luften. Då finns det ingenstans
+// att lägga svaret, och loggen ska lämnas som den är i stället för att kasta.
+test('okänd post lämnar loggen orörd', () => {
+  stubLocalStorage();
+  const log = addEntry([], post('a'));
+  assert.deepEqual(addChat(log, 'finns-inte', 0, { q: 'x', a: 'y' }), log);
 });
 
 test('glöm bort en post lämnar de andra i fred', () => {

@@ -255,6 +255,11 @@ export const EN = {
   'Ta bort förslagen från {time}': 'Remove the suggestions from {time}',
   'Rensa hela receptloggen?': 'Clear the whole recipe log?',
   'Rensa loggen': 'Clear the log',
+  'Öppna {name}': 'Open {name}',
+  'Fråga om rätten': 'Ask about this dish',
+  'Slut på något? Osäker på ett steg?': 'Out of something? Unsure about a step?',
+  'Skicka frågan': 'Send the question',
+  'Skriv en fråga först.': 'Type a question first.',
 
   // Lägg in en vara
   'Lägg in en vara': 'Add an item',

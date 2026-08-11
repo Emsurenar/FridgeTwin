@@ -58,6 +58,23 @@ export function addEntry(log, entry) {
   return write([entry, ...log].slice(0, MAX_ENTRIES));
 }
 
+/*
+  En besvarad fråga läggs på sitt recept. Svaret kostade tokens precis som
+  förslagen, så det går genom samma kvotsäkra write. Finns posten inte längre —
+  frågan kan ha varit i luften när den glömdes bort — lämnas loggen orörd:
+  svaret hör till ett recept som inte finns, och har ingenstans att bo.
+*/
+export function addChat(log, entryId, recipeIndex, qa) {
+  if (!log.some(e => e.id === entryId)) return log;
+  return write(log.map(e => e.id !== entryId ? e : {
+    ...e,
+    recipes: e.recipes.map((r, i) => i !== recipeIndex ? r : {
+      ...r,
+      chat: [...(r.chat || []), qa],
+    }),
+  }));
+}
+
 export function removeEntry(log, id) {
   return write(log.filter(e => e.id !== id));
 }

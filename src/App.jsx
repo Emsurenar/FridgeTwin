@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Refrigerator, ChefHat, Settings as SettingsIcon, ScanLine, Loader2, AlertTriangle } from 'lucide-react';
 import * as api from './lib/api';
-import { subscribeAi, aiReady, suggestRecipes } from './lib/ai';
+import { subscribeAi, aiReady, suggestRecipes, askRecipe } from './lib/ai';
 import { t, subscribeLang, getLang } from './lib/i18n';
-import { loadLog, addEntry, removeEntry, clearLog, newEntryId } from './lib/recipeLog';
+import { loadLog, addEntry, addChat, removeEntry, clearLog, newEntryId } from './lib/recipeLog';
 import { loadMirror, saveMirror, missingFromServer } from './lib/mirror';
 import { loadRatings, setRating } from './lib/ratings';
 import FridgeView from './components/FridgeView';
@@ -41,6 +41,8 @@ export default function App() {
   const [recipeLog, setRecipeLog] = useState(loadLog);
   const [recipeBusy, setRecipeBusy] = useState(false);
   const [recipesUnseen, setRecipesUnseen] = useState(false);
+  // Vilket recept som väntar på svar ("entryId:index"), null när inget gör det.
+  const [askingKey, setAskingKey] = useState(null);
   // Betygen bor här av samma skäl som loggen: RecipesView avmonteras vid varje
   // flikbyte, och de ska med i nästa promptanrop oavsett var man står.
   const [ratings, setRatings] = useState(loadRatings);
@@ -57,6 +59,7 @@ export default function App() {
   */
   const consuming = useRef(new Set());
   const recipesRunning = useRef(false);
+  const askRunning = useRef(false);
   // Spegeln får inte skrivas innan första hämtningen lyckats — annars sparar
   // appen sitt tomma starttillstånd över det som faktiskt fanns.
   const loadedOnce = useRef(false);
@@ -384,6 +387,30 @@ export default function App() {
     }
   }, [items, ratings, showToast]);
 
+  /*
+    Frågekörningen bor här av samma skäl som receptkörningen: vyn avmonteras
+    vid varje flikbyte, och ett svar som är i luften får inte dö med den.
+    Svaret läggs i loggen, så det finns kvar när man kommer tillbaka.
+
+    Svarar med om det gick vägen — kortet tömmer bara sitt frågefält då.
+  */
+  const runAsk = useCallback(async ({ entryId, index, recipe, question }) => {
+    if (askRunning.current) return false;
+    askRunning.current = true;
+    setAskingKey(`${entryId}:${index}`);
+    try {
+      const answer = await askRecipe(recipe, items, recipe.chat, question);
+      setRecipeLog(prev => addChat(prev, entryId, index, { q: question, a: answer }));
+      return true;
+    } catch (e) {
+      showToast(e.message, 'danger');
+      return false;
+    } finally {
+      askRunning.current = false;
+      setAskingKey(null);
+    }
+  }, [items, showToast]);
+
   const handleKeyChanged = (reset = false) => {
     if (reset) api.resetKey();
     // Spegeln bär sin egen nyckel sedan dess, så loadMirror vägrar redan lämna
@@ -437,9 +464,10 @@ export default function App() {
         )}
         {tab === 'recipes' && (
           <RecipesView items={items} aiOk={aiOk} busy={recipeBusy} log={recipeLog}
-            ratings={ratings}
+            ratings={ratings} askingKey={askingKey}
             onRate={(title, n) => setRatings(prev => setRating(prev, title, n))}
-            onRun={runRecipes} onGoToSettings={() => setTab('settings')}
+            onRun={runRecipes} onAsk={runAsk} onSelect={setSelected}
+            onGoToSettings={() => setTab('settings')}
             onForget={(id) => setRecipeLog(prev => removeEntry(prev, id))}
             onClear={() => setRecipeLog(clearLog())} />
         )}
